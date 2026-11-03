@@ -33,7 +33,7 @@ import remap
 CONFIG = os.path.expanduser("~/Library/Application Support/RazerDAV2/config.json")
 HERE = os.environ.get("RESOURCEPATH", os.path.dirname(os.path.abspath(__file__)))   # py2app sets RESOURCEPATH
 SYNC_SECONDS = 1.0     # how often we re-read DPI from the mouse (catches the DPI button)
-WIDTH = 360
+WIDTH = 376
 LIGHT_MODES = ("off", "manual", "screen", "night")
 # Page messages handled on the main thread (windows, panels, system settings, event tap); the rest go to the worker.
 MAIN_THREAD_CMDS = {"ready", "size", "theme", "login", "dpiPopup", "quit", "openSettings", "openAccessibility", "customColour",

@@ -14,11 +14,11 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:transparent;color:var(--t);font:13px/1.35 -apple-system,BlinkMacSystemFont,sans-serif;-webkit-user-select:none;user-select:none;cursor:default}
-.pv{background:var(--bg);padding:14px 14px 10px;width:360px}
+.pv{background:var(--bg);padding:16px 16px 12px;width:376px}
 svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
 button{all:unset;cursor:pointer;box-sizing:border-box}
 button:focus-visible,input:focus-visible{outline:2px solid var(--g);outline-offset:1px}
-.hd{display:flex;align-items:center;gap:10px}
+.hd{display:flex;align-items:center;gap:12px}
 .logo{width:40px;height:40px;border-radius:10px;background:var(--c);border:1.5px solid var(--g);display:flex;align-items:center;justify-content:center;color:var(--g)}
 /* the logo comes from app.py (setLogo) as a data URL: WebKit refuses CSS masks from file:// URLs */
 .snake{width:34px!important;height:34px!important;width:28px;height:28px;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat}
@@ -26,14 +26,14 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--g);outline-offs
 .sub{font-size:12px;color:var(--t2)}
 .iconbtn{color:var(--t2);padding:4px;border-radius:6px}.iconbtn:hover{color:var(--t);background:var(--c)}
 .banner{margin-top:10px;background:var(--bad-bg);border:1px solid var(--bad-ln);color:var(--bad-t);border-radius:8px;padding:8px 10px;font-size:12px;display:flex;gap:8px;align-items:flex-start}
-.sec{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.09em;color:var(--g);margin:16px 2px 8px;font-weight:600}
+.sec{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.09em;color:var(--g);margin:20px 2px 10px;font-weight:600}
 .sec.btn::after{display:none}
 .sec .rule{flex:1;height:1px;background:var(--ln)}
 .sec::after{content:"";flex:1;height:1px;background:var(--ln)}
 .dim{opacity:.35;pointer-events:none}
-.card{background:var(--c);border:1px solid var(--ln);border-radius:10px;padding:10px 12px}
+.card{background:var(--c);border:1px solid var(--ln);border-radius:12px;padding:12px 14px}
 .seg{display:flex;background:var(--c);border:1px solid var(--ln);border-radius:8px;padding:2px;gap:2px}
-.seg button{flex:1;text-align:center;padding:5px 0;border-radius:6px;color:var(--t2)}
+.seg button{flex:1;text-align:center;padding:6px 0;min-height:28px;border-radius:6px;color:var(--t2)}
 .seg button:hover{color:var(--t)}
 .seg button.on{box-shadow:inset 0 0 0 1px var(--on-edge);background:var(--fill);color:var(--ink);font-weight:600}
 .lbl{color:var(--t2);display:flex;align-items:center;gap:4px}
@@ -42,8 +42,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--g);outline-offs
 .link{font-size:12px;color:var(--t2);display:inline-flex;gap:4px;align-items:center}.link:hover{color:var(--t)}
 .stin{all:unset;width:100%;text-align:center;padding:4px 0;border-radius:6px;background:var(--well);border:1px solid var(--field-ln);font-variant-numeric:tabular-nums;cursor:text}
 .stin.act{border-color:var(--g)}
-.fx{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.fx button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 0;border-radius:8px;background:var(--c);border:1px solid var(--ln);font-size:12px;color:var(--t2)}
+.fx{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fx button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0 11px;border-radius:10px;background:var(--c);border:1px solid var(--ln);font-size:12px;color:var(--t2)}
 .fx button:hover{color:var(--t)}
 .fx button.on{border-color:var(--g);color:var(--g)}
 .fx svg.ic{width:18px;height:18px}
@@ -52,11 +52,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--g);outline-offs
 .fx button:nth-child(3n+2) .tip{left:50%;transform:translateX(-50%)}
 .fx button:nth-child(3n) .tip{left:auto;right:0}
 .fx button:hover .tip,.fx button:focus-visible .tip{visibility:visible;transition:visibility 0s .3s}
-.sws{display:flex;align-items:center;gap:9px;margin:12px 2px 2px}
+.sws{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 2px 2px}
 .sw{width:20px;height:20px;border-radius:50%;border:1px solid var(--field-ln)}
 .sw.on{outline:2px solid var(--t);outline-offset:2px}
-.slots{display:flex;gap:6px;margin:12px 0 0}
-.slot{flex:1;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;background:var(--c);border:1px solid var(--ln);color:var(--t2);font-size:12px}
+.slots{display:flex;gap:8px;margin:16px 0 0}
+.slot{flex:1;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:var(--c);border:1px solid var(--ln);color:var(--t2);font-size:12px}
 .slot:hover{color:var(--t)}
 .slot.on{border-color:var(--g);color:var(--t)}
 .dot{width:14px;height:14px;border-radius:50%;border:1px solid var(--ln);flex:none}
@@ -66,15 +66,15 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--g);outline-offs
 input[type=range]{flex:1;accent-color:var(--g)}
 input[type=range]:disabled{opacity:.45}
 .modes button{display:flex;align-items:center;justify-content:center;gap:5px}
-.tabs{display:flex;gap:2px;margin:12px -4px 4px;border-bottom:1px solid var(--ln)}
-.tabs button{display:flex;align-items:center;gap:5px;padding:8px 9px 9px;color:var(--t2);font-size:13px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs{display:flex;gap:4px;margin:14px -4px 0;border-bottom:1px solid var(--ln)}
+.tabs button{display:flex;align-items:center;gap:6px;padding:10px 10px 11px;color:var(--t2);font-size:13px;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tabs button:hover{color:var(--t)}
 .tabs button.on{color:var(--t);border-bottom-color:var(--fill);font-weight:600}
 .tabs button.on svg.ic{color:var(--g)}
-.tabs .gear{margin-left:auto;padding:8px 8px 9px}
-.panel{padding-top:6px}
-.panel > .sec:first-child,.panel > .card:first-child{margin-top:8px}
-.opt{display:flex;align-items:center;gap:10px;margin-top:10px}
+.tabs .gear{margin-left:auto;padding:10px 10px 11px}
+.panel{padding-top:16px}
+.panel > .sec:first-of-type{margin-top:0}
+.opt{display:flex;align-items:center;gap:10px;min-height:32px;margin-top:6px}
 .extras{margin-top:6px;padding-top:2px;border-top:1px solid var(--ln)}
 .modes svg.ic,.theme svg.ic{width:14px;height:14px}
 .theme{padding:2px}.theme button{display:flex;align-items:center;gap:4px;padding:0 9px;min-height:24px;flex:none}
@@ -88,23 +88,23 @@ input[type=range]:disabled{opacity:.45}
 .i.up .tip{top:auto;bottom:calc(100% + 6px)}
 .i:hover .tip,.i:focus .tip{visibility:visible}
 .n{width:18px;height:18px;border-radius:50%;background:var(--fill);color:var(--ink);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none}
-.row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;border:1px solid transparent;width:100%}
+.row{display:flex;align-items:center;gap:10px;padding:10px 8px;border-radius:8px;border:1px solid transparent;width:100%}
 .row:hover{background:var(--c)}
 .row.sel{background:var(--c);border-color:var(--g)}
 .act{color:var(--t2);font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .act.set{color:var(--g)}
-.pick{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
-.pick button{padding:7px 8px;border-radius:7px;background:var(--c);border:1px solid var(--ln);font-size:12px;color:var(--t2);display:flex;gap:6px;align-items:center}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+.pick button{padding:8px 10px;border-radius:8px;background:var(--c);border:1px solid var(--ln);font-size:12px;color:var(--t2);display:flex;gap:6px;align-items:center}
 .pick button:hover{color:var(--t)}
 .pick button.on{border-color:var(--g);color:var(--g)}
-.dash{flex:1;font-size:12px;color:var(--t2);padding:7px 8px;border-radius:7px;border:1px dashed var(--ln);display:flex;gap:6px;align-items:center}
+.dash{flex:1;font-size:12px;color:var(--t2);padding:8px 10px;border-radius:8px;border:1px dashed var(--ln);display:flex;gap:6px;align-items:center}
 .dash:hover{color:var(--t)}
 .dash.rec{border-color:var(--g);color:var(--g)}
 .txt{all:unset;flex:1;font:12px ui-monospace,Menlo,monospace;padding:7px 8px;border-radius:7px;background:var(--well);border:1px solid var(--field-ln);cursor:text}
 .txt::placeholder{color:var(--t2)}
 .err{color:var(--bad);font-size:12px;margin:4px 2px 0}
-.small{font-size:11px;color:var(--t3);line-height:1.45}
-.foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--ln);font-size:12px;color:var(--t2)}
+.small{font-size:11px;color:var(--t3);line-height:1.5}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--ln);font-size:12px;color:var(--t2)}
 #toast{position:fixed;left:14px;right:14px;bottom:12px;background:var(--bad-bg);border:1px solid var(--bad-ln);color:var(--bad-t);border-radius:8px;padding:8px 10px;font-size:12px;display:none;z-index:20}
 </style>
 </head>
@@ -144,14 +144,14 @@ const CODE = {Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Quote
               ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right"};
 
 let S = null;                       // last state from the app
-const TABS = [["sensor", "Sensor", "gauge"], ["lighting", "Lighting", "bulb"], ["buttons", "Buttons", "mouse"], ["settings", "Settings", "settings"]];
+const TABS = [["lighting", "Lighting", "bulb"], ["sensor", "Sensor", "gauge"], ["buttons", "Buttons", "mouse"], ["settings", "Settings", "settings"]];
 let savedTab = null;
-try { savedTab = localStorage.getItem("tab"); } catch (e) {}
+try { savedTab = localStorage.getItem("lastTab"); } catch (e) {}
 let ui = {open: null, recording: false, macro: false, editStages: null, err: {}, slot: 0,
-          tab: TABS.some(t => t[0] === savedTab) ? savedTab : "sensor"};
+          tab: TABS.some(t => t[0] === savedTab) ? savedTab : "lighting"};
 function setTab(k, fromKeys) {
   ui.tab = k;
-  try { localStorage.setItem("tab", k); } catch (e) {}
+  try { localStorage.setItem("lastTab", k); } catch (e) {}
   render();
   if (fromKeys) $(`#tab-${k}`)?.focus();     // keep keyboard focus on the tab bar; a click doesn't need it
 }
@@ -241,38 +241,38 @@ function render() {
       ${ui.editStages ? "" : `<button class="link" onclick="ui.editStages={active:${active},list:[${stages}]};render()">${ic("pencil")} Edit</button>`}
     </div>
     ${ui.err.dpi ? `<div class="err">${ui.err.dpi}</div>` : ""}
-    <div class="lbl" style="font-size:12px;margin:8px 0 6px">Stages
+    <div class="lbl" style="font-size:12px;margin:12px 0 8px">Stages
       ${info("The button under the scroll wheel cycles through these. Click one to switch to it now. Edit changes how many there are (1–5) and their values.")}</div>
     ${stageHtml}
   </div>
-  <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+  <div style="display:flex;align-items:center;gap:12px;margin-top:16px">
     <span class="lbl" style="width:72px">Polling ${info("How often the mouse reports its position to the Mac. 1000 Hz (every 1 ms) feels smoothest; 125 Hz uses the least CPU but feels choppier.")}</span>
     <div class="seg" style="flex:1">${[125, 500, 1000].map(h => `<button class="${S.poll === h ? "on" : ""}" aria-pressed="${S.poll === h}" aria-label="${h} Hz" onclick="post('poll',{hz:${h}})">${h === 1000 ? "1000 Hz" : h}</button>`).join("")}</div>
   </div>
 
 `,
     lighting: `
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
     <span class="lbl" style="width:72px">Zone ${info("Which LEDs the lighting changes below affect: the logo on the palm, the scroll wheel, or both.")}</span>
     <div class="seg" style="flex:1">${[["both", "Both"], ["logo", "Logo"], ["wheel", "Wheel"]].map(([z, l]) =>
         `<button class="${S.zone === z ? "on" : ""}" aria-pressed="${S.zone === z}" onclick="post('zone',{zone:'${z}'})">${l}</button>`).join("")}</div>
   </div>
   <div class="fx">${EFFECTS.map(([k, l, i, d]) => `<button class="${eff === k ? "on" : ""}" aria-pressed="${eff === k}" aria-description="${d}" onclick="post('effect',{effect:'${k}'})">${ic(i)}${l}<span class="tip" aria-hidden="true">${d}</span></button>`).join("")}</div>
-  <div class="small" style="margin:6px 2px 0;display:flex;align-items:center;gap:4px">Shows the effect last set here
+  <div class="small" style="margin:8px 2px 0;display:flex;align-items:center;gap:4px">Shows the effect last set here
     ${info("The mouse can't report which effect it's running, so the app remembers what it last set. Effects changed by other apps won't show here.")}</div>
   ${colourHtml}
-  <div class="lbl" style="font-size:12px;margin:14px 2px 6px">Brightness
+  <div class="lbl" style="font-size:12px;margin:20px 2px 8px">Brightness
     ${info("Off: LEDs dark, your colours and effect are kept. Manual: you set the level. Screen: follows your MacBook screen, which macOS adjusts to the room light. Night: your level by day; while Night Shift warms your screen, colours turn amber and the LEDs dim by 40%.")}</div>
   <div class="seg modes" role="radiogroup" aria-label="Brightness mode">${MODES.map(([m, l, i]) =>
       `<button role="radio" aria-checked="${mode === m}" class="${mode === m ? "on" : ""}" onclick="post('mode',{mode:'${m}'})">${ic(i)}${l}</button>`).join("")}</div>
   ${mode === "off" ? `<div class="small" style="margin:8px 2px 0">LEDs are off. Your colours and effect are kept.</div>` : `
-  <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+  <div style="display:flex;align-items:center;gap:12px;margin-top:14px">
     <span style="color:var(--t2)">${ic("sun")}</span>
     <input type="range" min="0" max="100" step="1" value="${pct}" id="br" aria-label="Brightness" aria-valuetext="${pct}%" oninput="bright(this.value)"
       ${mode === "screen" ? `disabled title="Following your MacBook screen. Pick Manual to set it yourself."` : ""}>
     <span id="brv" style="width:34px;text-align:right;color:var(--t2);font-variant-numeric:tabular-nums">${pct}%</span>
   </div>
-  <div class="small" style="margin:6px 2px 0${mode === "screen" && !S.autoAvailable ? ";color:var(--bad-t)" : ""}">${
+  <div class="small" style="margin:8px 2px 0${mode === "screen" && !S.autoAvailable ? ";color:var(--bad-t)" : ""}">${
     mode === "screen" ? (S.autoAvailable ? "Following your MacBook screen. It fades along as the room light changes."
                                          : "Your MacBook screen isn't available (lid closed or external monitor only), so the level stays where it is.")
     : mode === "night" ? (S.nightOn ? `<span style="color:var(--amber)">Night Shift is on:</span> warmer colours, 40% dimmer. The slider sets your daytime level.`
@@ -280,7 +280,7 @@ function render() {
     : "You set the level."}</div>`}
 `,
     buttons: `
-  <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px">
+  <div style="display:flex;gap:16px;align-items:center;margin-bottom:12px">
     <svg width="48" height="72" viewBox="0 0 70 104" role="img" aria-label="Mouse seen from above, buttons numbered">
       <path d="M35 4 C58 4 64 26 64 52 C64 82 54 100 35 100 C16 100 6 82 6 52 C6 26 12 4 35 4 Z" style="fill:var(--c);stroke:var(--ln)" stroke-width="1.5"/>
       <line x1="35" y1="4" x2="35" y2="38" style="stroke:var(--ln)" stroke-width="1.5"/>
@@ -299,7 +299,7 @@ function render() {
     </div>
   </div>
   ${btnHtml}
-  <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="link" onclick="post('resetButtons')" title="Set all three buttons back to Normal">${ic("arrow-back-up")} Reset all buttons</button></div>
+  <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="link" onclick="post('resetButtons')" title="Set all three buttons back to Normal">${ic("arrow-back-up")} Reset all buttons</button></div>
 `,
     settings: `
   <div class="sec" role="heading" aria-level="2">AUTOMATIC</div>
