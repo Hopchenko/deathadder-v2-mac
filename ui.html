@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DeathAdder V2</title>
+<style>
+/* Dark is the default; light applies when macOS (or the theme picker) says so. app.py sets the
+   popover's NSAppearance, and WebKit reports it to the page as prefers-color-scheme. */
+:root{--g:#44d62c;--ink:#0b0d0b;--bg:rgba(11,13,11,.9);--c:#171a17;--well:#0b0d0b;--ln:#2a2f2a;--t:#e8ede8;--t2:#8a948a;--t3:#5f685f;
+  --bad:#ff5a4f;--bad-bg:#2a1414;--bad-ln:#5a2622;--bad-t:#ffb3ad;--tip:#252a25;--tip-ln:#3a413a;--amber:#ffb066;--fill:#44d62c;--field-ln:#4a524a;--on-edge:transparent;color-scheme:dark}
+@media (prefers-color-scheme: light){
+:root{--g:#13780a;--ink:#0b0d0b;--bg:rgba(246,248,246,.94);--c:#ffffff;--well:#eef2ee;--ln:#d9e0d9;--t:#141a14;--t2:#4f5a4f;--t3:#5d685d;
+  --bad:#c8302a;--bad-bg:#fdecea;--bad-ln:#f3c3bf;--bad-t:#9b231e;--tip:#ffffff;--tip-ln:#d9e0d9;--amber:#9a5200;--fill:#44d62c;--field-ln:#7f897f;--on-edge:#187010;color-scheme:light}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:transparent;color:var(--t);font:13px/1.35 -apple-system,BlinkMacSystemFont,sans-serif;-webkit-user-select:none;user-select:none;cursor:default}
+.pv{background:var(--bg);padding:14px 14px 10px;width:360px}
+svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;vertical-align:-3px}
+button{all:unset;cursor:pointer;box-sizing:border-box}
+button:focus-visible,input:focus-visible{outline:2px solid var(--g);outline-offset:1px}
+.hd{display:flex;align-items:center;gap:10px}
+.logo{width:40px;height:40px;border-radius:10px;background:var(--c);border:1.5px solid var(--g);display:flex;align-items:center;justify-content:center;color:var(--g)}
+/* the logo comes from app.py (setLogo) as a data URL: WebKit refuses CSS masks from file:// URLs */
+.snake{width:34px!important;height:34px!important;width:28px;height:28px;-webkit-mask:var(--logo) center/contain no-repeat;mask:var(--logo) center/contain no-repeat}
+.name{font-weight:600;font-size:15px;letter-spacing:.03em}
+.sub{font-size:12px;color:var(--t2)}
+.iconbtn{color:var(--t2);padding:4px;border-radius:6px}.iconbtn:hover{color:var(--t);background:var(--c)}
+.banner{margin-top:10px;background:var(--bad-bg);border:1px solid var(--bad-ln);color:var(--bad-t);border-radius:8px;padding:8px 10px;font-size:12px;display:flex;gap:8px;align-items:flex-start}
+.sec{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.09em;color:var(--g);margin:16px 2px 8px;font-weight:600}
+.sec.btn::after{display:none}
+.sec .rule{flex:1;height:1px;background:var(--ln)}
+.sec::after{content:"";flex:1;height:1px;background:var(--ln)}
+.dim{opacity:.35;pointer-events:none}
+.card{background:var(--c);border:1px solid var(--ln);border-radius:10px;padding:10px 12px}
+.seg{display:flex;background:var(--c);border:1px solid var(--ln);border-radius:8px;padding:2px;gap:2px}
+.seg button{flex:1;text-align:center;padding:5px 0;border-radius:6px;color:var(--t2)}
+.seg button:hover{color:var(--t)}
+.seg button.on{box-shadow:inset 0 0 0 1px var(--on-edge);background:var(--fill);color:var(--ink);font-weight:600}
+.lbl{color:var(--t2);display:flex;align-items:center;gap:4px}
+.dpi{all:unset;width:5.2ch;font-size:30px;font-weight:600;color:var(--g);font-variant-numeric:tabular-nums;cursor:text;border-radius:6px}
+.dpi:focus{background:var(--well);outline:1px solid var(--ln)}
+.link{font-size:12px;color:var(--t2);display:inline-flex;gap:4px;align-items:center}.link:hover{color:var(--t)}
+.stin{all:unset;width:100%;text-align:center;padding:4px 0;border-radius:6px;background:var(--well);border:1px solid var(--field-ln);font-variant-numeric:tabular-nums;cursor:text}
+.stin.act{border-color:var(--g)}
+.fx{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.fx button{display:flex;flex-direction:column;align-items:center;gap:4px;padding:9px 0;border-radius:8px;background:var(--c);border:1px solid var(--ln);font-size:12px;color:var(--t2)}
+.fx button:hover{color:var(--t)}
+.fx button.on{border-color:var(--g);color:var(--g)}
+.fx svg.ic{width:18px;height:18px}
+.fx button{position:relative}
+.fx .tip{left:0;width:210px;text-align:left}
+.fx button:nth-child(3n+2) .tip{left:50%;transform:translateX(-50%)}
+.fx button:nth-child(3n) .tip{left:auto;right:0}
+.fx button:hover .tip,.fx button:focus-visible .tip{visibility:visible;transition:visibility 0s .3s}
+.sws{display:flex;align-items:center;gap:9px;margin:12px 2px 2px}
+.sw{width:20px;height:20px;border-radius:50%;border:1px solid var(--field-ln)}
+.sw.on{outline:2px solid var(--t);outline-offset:2px}
+.slots{display:flex;gap:6px;margin:12px 0 0}
+.slot{flex:1;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;background:var(--c);border:1px solid var(--ln);color:var(--t2);font-size:12px}
+.slot:hover{color:var(--t)}
+.slot.on{border-color:var(--g);color:var(--t)}
+.dot{width:14px;height:14px;border-radius:50%;border:1px solid var(--ln);flex:none}
+.tg{width:32px;height:19px;border-radius:10px;background:var(--ln);position:relative;flex:none}
+.tg::after{content:"";position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:var(--t2);transition:left .12s}
+.tg.on{background:var(--fill);box-shadow:inset 0 0 0 1px var(--on-edge)}.tg.on::after{left:15px;background:var(--ink)}
+input[type=range]{flex:1;accent-color:var(--g)}
+input[type=range]:disabled{opacity:.45}
+.modes button{display:flex;align-items:center;justify-content:center;gap:5px}
+.modes svg.ic,.theme svg.ic{width:14px;height:14px}
+.theme{padding:2px}.theme button{display:flex;align-items:center;gap:4px;padding:0 9px;min-height:24px;flex:none}
+.i{position:relative;display:inline-flex;color:var(--t3);cursor:help}
+.i:hover,.i:focus{color:var(--g);outline:none}
+.i:focus-visible{outline:2px solid var(--g);outline-offset:1px;border-radius:50%}
+.i::before,.tg::before{content:"";position:absolute;inset:-4px}           /* 24pt touch/click target */
+.link{padding:4px 0;margin:-4px 0}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+.i .tip,.fx .tip{visibility:hidden;position:absolute;z-index:9;top:calc(100% + 6px);left:-10px;width:230px;background:var(--tip);border:1px solid var(--tip-ln);color:var(--t);font-size:12px;line-height:1.45;padding:8px 10px;border-radius:8px;letter-spacing:0;font-weight:400;white-space:normal;text-transform:none}
+.i.up .tip{top:auto;bottom:calc(100% + 6px)}
+.i:hover .tip,.i:focus .tip{visibility:visible}
+.n{width:18px;height:18px;border-radius:50%;background:var(--fill);color:var(--ink);font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.row{display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px;border:1px solid transparent;width:100%}
+.row:hover{background:var(--c)}
+.row.sel{background:var(--c);border-color:var(--g)}
+.act{color:var(--t2);font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act.set{color:var(--g)}
+.pick{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0}
+.pick button{padding:7px 8px;border-radius:7px;background:var(--c);border:1px solid var(--ln);font-size:12px;color:var(--t2);display:flex;gap:6px;align-items:center}
+.pick button:hover{color:var(--t)}
+.pick button.on{border-color:var(--g);color:var(--g)}
+.dash{flex:1;font-size:12px;color:var(--t2);padding:7px 8px;border-radius:7px;border:1px dashed var(--ln);display:flex;gap:6px;align-items:center}
+.dash:hover{color:var(--t)}
+.dash.rec{border-color:var(--g);color:var(--g)}
+.txt{all:unset;flex:1;font:12px ui-monospace,Menlo,monospace;padding:7px 8px;border-radius:7px;background:var(--well);border:1px solid var(--field-ln);cursor:text}
+.txt::placeholder{color:var(--t2)}
+.err{color:var(--bad);font-size:12px;margin:4px 2px 0}
+.small{font-size:11px;color:var(--t3);line-height:1.45}
+.foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid var(--ln);font-size:12px;color:var(--t2)}
+#toast{position:fixed;left:14px;right:14px;bottom:12px;background:var(--bad-bg);border:1px solid var(--bad-ln);color:var(--bad-t);border-radius:8px;padding:8px 10px;font-size:12px;display:none;z-index:20}
+</style>
+</head>
+<body>
+<div class="pv" id="root"></div>
+<div id="toast" role="alert"></div>
+<script>
+// Tabler Icons (MIT), https://tabler.io/icons
+const ICONS={"device-desktop":"<path d=\"M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10z\" /><path d=\"M7 20h10\" /><path d=\"M9 16v4\" /><path d=\"M15 16v4\" />","device-laptop":"<path d=\"M3 19l18 0\" /><path d=\"M5 6m0 1a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v8a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1z\" />","moon":"<path d=\"M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z\" />","alert-triangle":"<path d=\"M12 9v4\" /><path d=\"M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z\" /><path d=\"M12 16h.01\" />","arrow-back-up":"<path d=\"M9 14l-4 -4l4 -4\" /><path d=\"M5 10h11a4 4 0 1 1 0 8h-1\" />","ban":"<path d=\"M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\" /><path d=\"M5.7 5.7l12.6 12.6\" />","check":"<path d=\"M5 12l5 5l10 -10\" />","chevron-down":"<path d=\"M6 9l6 6l6 -6\" />","circle-half-2":"<path d=\"M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\" /><path d=\"M12 3v18\" /><path d=\"M12 14l7 -7\" /><path d=\"M12 19l8.5 -8.5\" /><path d=\"M12 9l4.5 -4.5\" />","circle":"<path d=\"M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\" />","click":"<path d=\"M3 12l3 0\" /><path d=\"M12 3l0 3\" /><path d=\"M7.8 7.8l-2.2 -2.2\" /><path d=\"M16.2 7.8l2.2 -2.2\" /><path d=\"M7.8 16.2l-2.2 2.2\" /><path d=\"M12 12l9 3l-4 2l-2 4l-3 -9\" />","clipboard":"<path d=\"M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2\" /><path d=\"M9 3m0 2a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v0a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2z\" />","copy":"<path d=\"M7 7m0 2.667a2.667 2.667 0 0 1 2.667 -2.667h8.666a2.667 2.667 0 0 1 2.667 2.667v8.666a2.667 2.667 0 0 1 -2.667 2.667h-8.666a2.667 2.667 0 0 1 -2.667 -2.667z\" /><path d=\"M4.012 16.737a2.005 2.005 0 0 1 -1.012 -1.737v-10c0 -1.1 .9 -2 2 -2h10c.75 0 1.158 .385 1.5 1\" />","dice-3":"<path d=\"M3 3m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z\" /><circle cx=\"8.5\" cy=\"8.5\" r=\".5\" fill=\"currentColor\" /><circle cx=\"15.5\" cy=\"15.5\" r=\".5\" fill=\"currentColor\" /><circle cx=\"12\" cy=\"12\" r=\".5\" fill=\"currentColor\" />","info-circle":"<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0\" /><path d=\"M12 9h.01\" /><path d=\"M11 12h1v4h1\" />","keyboard":"<path d=\"M2 6m0 2a2 2 0 0 1 2 -2h16a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-16a2 2 0 0 1 -2 -2z\" /><path d=\"M6 10l0 .01\" /><path d=\"M10 10l0 .01\" /><path d=\"M14 10l0 .01\" /><path d=\"M18 10l0 .01\" /><path d=\"M6 14l0 .01\" /><path d=\"M18 14l0 .01\" /><path d=\"M10 14l4 .01\" />","layout-grid":"<path d=\"M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\" /><path d=\"M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\" /><path d=\"M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\" /><path d=\"M14 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z\" />","list":"<path d=\"M9 6l11 0\" /><path d=\"M9 12l11 0\" /><path d=\"M9 18l11 0\" /><path d=\"M5 6l0 .01\" /><path d=\"M5 12l0 .01\" /><path d=\"M5 18l0 .01\" />","minus":"<path d=\"M5 12l14 0\" />","mouse":"<path d=\"M6 3m0 4a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v10a4 4 0 0 1 -4 4h-4a4 4 0 0 1 -4 -4z\" /><path d=\"M12 7l0 4\" />","palette":"<path d=\"M12 21a9 9 0 0 1 0 -18c4.97 0 9 3.582 9 8c0 1.06 -.474 2.078 -1.318 2.828c-.844 .75 -1.989 1.172 -3.182 1.172h-2.5a2 2 0 0 0 -1 3.75a1.3 1.3 0 0 1 -1 2.25\" /><path d=\"M8.5 10.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\" /><path d=\"M12.5 7.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\" /><path d=\"M16.5 10.5m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\" />","pencil":"<path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\" /><path d=\"M13.5 6.5l4 4\" />","plus":"<path d=\"M12 5l0 14\" /><path d=\"M5 12l14 0\" />","power":"<path d=\"M7 6a7.75 7.75 0 1 0 10 0\" /><path d=\"M12 4l0 8\" />","rainbow":"<path d=\"M22 17c0 -5.523 -4.477 -10 -10 -10s-10 4.477 -10 10\" /><path d=\"M18 17a6 6 0 1 0 -12 0\" /><path d=\"M14 17a2 2 0 1 0 -4 0\" />","refresh":"<path d=\"M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4\" /><path d=\"M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4\" />","screenshot":"<path d=\"M7 19a2 2 0 0 1 -2 -2\" /><path d=\"M5 13v-2\" /><path d=\"M5 7a2 2 0 0 1 2 -2\" /><path d=\"M11 5h2\" /><path d=\"M17 5a2 2 0 0 1 2 2\" /><path d=\"M19 11v2\" /><path d=\"M19 17v4\" /><path d=\"M21 19h-4\" /><path d=\"M13 19h-2\" />","sun":"<path d=\"M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0\" /><path d=\"M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7\" />","wind":"<path d=\"M5 8h8.5a2.5 2.5 0 1 0 -2.34 -3.24\" /><path d=\"M3 12h15.5a2.5 2.5 0 1 1 -2.34 3.24\" /><path d=\"M4 16h5.5a2.5 2.5 0 1 1 -2.34 3.24\" />","x":"<path d=\"M18 6l-12 12\" /><path d=\"M6 6l12 12\" />"};
+const $ = s => document.querySelector(s);
+const ic = n => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ""}</svg>`;
+const info = (text, up) => `<span class="i${up ? " up" : ""}" tabindex="0" aria-label="${text}">${ic("info-circle")}<span class="tip">${text}</span></span>`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const post = (cmd, args = {}) => window.webkit?.messageHandlers?.app?.postMessage({cmd, ...args});
+
+const EFFECTS = [
+  ["static", "Static", "circle", "One solid colour that stays on."],
+  ["breath1", "Breathing", "wind", "Slowly fades your colour in and out, like breathing."],
+  ["breath2", "Two-tone", "circle-half-2", "Breathes between two colours. Pick the second one in the extra row that appears below."],
+  ["spectrum", "Spectrum", "rainbow", "Smoothly cycles through every colour of the rainbow. Ignores the colour you picked."],
+  ["reactive", "Reactive", "click", "Stays dark and lights up in your colour when you click, then fades out."],
+  ["breathR", "Random", "dice-3", "Breathes in and out, picking a new random colour each time."]];
+const THEMES = [["system", "Follow macOS", "device-desktop"], ["light", "Light", "sun"], ["dark", "Dark", "moon"]];
+const MODES = [["off", "Off", "power"], ["manual", "Manual", "sun"], ["screen", "Screen", "device-laptop"], ["night", "Night", "moon"]];
+const SWATCHES = ["#44d62c", "#ff0000", "#ff6400", "#ffdc00", "#00ffff", "#0050ff", "#9600ff", "#ff0078", "#ffffff"];
+const SWATCH_NAMES = ["Razer green", "Red", "Orange", "Yellow", "Cyan", "Blue", "Purple", "Pink", "White"];
+const BUTTONS = [["back", "Thumb button, back"], ["forward", "Thumb button, front"], ["middle", "Scroll wheel press"]];
+const PRESETS = [["default", "Normal", "arrow-back-up"], ["disabled", "Do nothing", "ban"], ["cmd+c", "Copy", "copy"],
+                 ["cmd+v", "Paste", "clipboard"], ["cmd+shift+4", "Screenshot", "screenshot"], ["ctrl+up", "Mission Control", "layout-grid"]];
+const SYM = {cmd: "⌘", shift: "⇧", alt: "⌥", opt: "⌥", ctrl: "⌃", fn: "fn"};
+// event.code -> key name understood by remap.KEYS (physical keys, like remap's ANSI key codes)
+const CODE = {Minus: "-", Equal: "=", BracketLeft: "[", BracketRight: "]", Quote: "'", Semicolon: ";", Backslash: "\\",
+              Comma: ",", Slash: "/", Period: ".", Backquote: "`", Space: "space", Enter: "return", Tab: "tab",
+              Backspace: "delete", Delete: "forwarddelete", Home: "home", End: "end", PageUp: "pageup", PageDown: "pagedown",
+              ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right"};
+
+let S = null;                       // last state from the app
+let ui = {open: null, recording: false, macro: false, editStages: null, err: {}, slot: 0};
+
+function friendly(a) {
+  const p = PRESETS.find(x => x[0] === (a || "default"));
+  if (p) return p[1];
+  if (a.includes(";") || a.startsWith("text ")) return "Macro";
+  return a.split("+").map(k => SYM[k] || k.toUpperCase()).join(" ");
+}
+
+function render() {
+  if (!S) { $("#root").innerHTML = `<div class="sub">Connecting…</div>`; return size(); }
+  const live = S.connected, eff = S.effect, two = eff === "breath2";
+  const [active, stages] = S.stages || [1, []];
+  const mode = S.lightMode || "manual", theme = S.theme || "system";
+  const pct = Math.round((mode === "night" ? S.yourLevel : S.brightness) / 2.55);
+  const glow = S.lightsOn ? S.colors[0] : "var(--ln)";
+  const ownColours = ["spectrum", "breathR", "off"].includes(eff);   // these ignore the colour you pick
+  if (!two) ui.slot = 0;
+  const slot = ui.slot;
+  const colourHtml = ownColours
+    ? `<div class="small" style="margin:12px 2px 2px">This effect picks its own colours.</div>`
+    : (two ? `<div class="slots">${[0, 1].map(i => `<button class="slot${slot === i ? " on" : ""}" aria-pressed="${slot === i}"
+          onclick="ui.slot=${i};render()"><span class="dot" style="background:${S.colors[i]}"></span>Colour ${i + 1}</button>`).join("")}</div>` : "")
+      + swRow(slot);
+  function swRow(slot) { return `<div class="sws">
+      ${SWATCHES.map(c => `<button class="sw${S.colors[slot] === c ? " on" : ""}" style="background:${c}" aria-pressed="${S.colors[slot] === c}" aria-label="${SWATCH_NAMES[SWATCHES.indexOf(c)]}" title="${SWATCH_NAMES[SWATCHES.indexOf(c)]}" onclick="post('colour',{slot:${slot},hex:'${c}'})"></button>`).join("")}
+      <span style="flex:1"></span>
+      <button class="iconbtn" aria-label="Custom colour" title="Custom colour" onclick="post('customColour',{slot:${slot}})"
+        style="${SWATCHES.includes(S.colors[slot]) ? "" : `color:${S.colors[slot]}`}">${ic("palette")}</button></div>`; }
+
+  let stageHtml;
+  if (ui.editStages) {
+    const e = ui.editStages;
+    stageHtml = `<div style="display:flex;gap:4px;margin-top:2px">
+        ${e.list.map((d, i) => `<input class="stin${i + 1 === e.active ? " act" : ""}" value="${d}" inputmode="numeric" aria-label="Stage ${i + 1} DPI"
+            onfocus="ui.editStages.active=${i + 1};this.parentNode.querySelectorAll('.stin').forEach(x=>x.classList.remove('act'));this.classList.add('act')"
+            oninput="ui.editStages.list[${i}]=this.value">`).join("")}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+        <button class="link" onclick="stageCount(-1)" aria-label="Remove a stage">${ic("minus")}</button>
+        <button class="link" onclick="stageCount(1)" aria-label="Add a stage">${ic("plus")}</button>
+        <span class="small" style="flex:1">Click a box to make it the active stage</span>
+        <button class="link" onclick="ui.editStages=null;ui.err.stages=null;render()">Cancel</button>
+        <button class="link" style="color:var(--g)" onclick="saveStages()">${ic("check")} Save</button>
+      </div>${ui.err.stages ? `<div class="err">${ui.err.stages}</div>` : ""}`;
+  } else {
+    stageHtml = `<div class="seg" style="background:var(--well)">${stages.map((d, i) =>
+        `<button class="${i + 1 === active ? "on" : ""}" aria-pressed="${i + 1 === active}" aria-label="Stage ${i + 1}, ${d} DPI" onclick="post('stage',{i:${i + 1}})">${d}</button>`).join("")}</div>`;
+  }
+
+  let btnHtml = BUTTONS.map(([k, label], idx) => {
+    const a = S.buttons[k] || "default", open = ui.open === k;
+    let h = `<button class="row${open ? " sel" : ""}" onclick="toggleRow('${k}')" aria-expanded="${open}">
+        <span class="n">${idx + 1}</span><span style="flex:1">${label}</span>
+        <span class="act${a !== "default" ? " set" : ""}">${esc(friendly(a))}</span>${ic("chevron-down")}</button>`;
+    if (open) {
+      h += `<div style="padding:0 8px 6px"><div class="pick">${PRESETS.map(([v, l, i]) =>
+          `<button class="${a === v ? "on" : ""}" aria-pressed="${a === v}" onclick="setButton('${k}','${v}')">${ic(i)}${l}</button>`).join("")}</div>
+        <div style="display:flex;gap:6px">
+          <button class="dash${ui.recording ? " rec" : ""}" onclick="startRecord()">${ic("keyboard")}${ui.recording ? "Press keys… Esc cancels" : "Record a shortcut…"}</button>
+          <button class="dash${ui.macro ? " rec" : ""}" onclick="ui.macro=!ui.macro;render();ui.macro&&$('#macro').focus()">${ic("list")}Build a macro…</button>
+        </div>
+        ${ui.macro ? `<div style="display:flex;gap:6px;align-items:center;margin-top:6px">
+            <input id="macro" class="txt" aria-label="Macro steps" placeholder="cmd+c; wait 150; cmd+v" value="${esc(PRESETS.some(p => p[0] === a) ? "" : a)}"
+              onkeydown="if(event.key==='Enter')setButton('${k}',this.value)">
+            ${info("Steps separated by ; run in order. A step is a shortcut like cmd+shift+4, a pause like wait 150 (milliseconds), or text hello to type words. Modifiers: cmd, shift, alt, ctrl, fn. Press Enter to save.", true)}
+          </div>` : ""}
+        ${ui.err.button ? `<div class="err">${esc(ui.err.button)}</div>` : ""}</div>`;
+    }
+    return h;
+  }).join("");
+
+  $("#root").innerHTML = `
+  <div class="hd">
+    <div class="logo" style="border-color:${glow};color:${S.lightsOn ? S.colors[0] : "var(--t2)"}">${LOGO
+      ? `<span class="snake" role="img" aria-label="Logo" style="--logo:url(${LOGO});background:${S.lightsOn ? S.colors[0] : "var(--t2)"}"></span>`
+      : ic("mouse")}</div>
+    <div style="flex:1"><div class="name">DEATHADDER <span style="color:var(--g)">V2</span></div>
+      <div class="sub">${live ? `<span style="color:var(--g)">●</span> Connected · fw ${esc(S.firmware)}` : `<span style="color:var(--bad)">●</span> Not connected`}</div></div>
+    <button class="iconbtn" onclick="post('refresh')" aria-label="Re-read the mouse" title="Re-read the mouse">${ic("refresh")}</button>
+  </div>
+  ${live ? "" : (/input monitoring/i.test(S.error || "")
+    ? `<button class="banner" style="width:100%;text-align:left;cursor:pointer" onclick="post('openSettings')" title="Open Input Monitoring settings">${ic("alert-triangle")}<div>${esc(S.error)}
+        <div style="display:flex;gap:14px;margin-top:6px"><span class="link" style="color:var(--bad-t);text-decoration:underline">Open Input Monitoring settings</span>
+        <span class="link" style="color:var(--bad-t)" role="button" onclick="event.stopPropagation();post('refresh')">Try again</span></div></div></button>`
+    : `<div class="banner">${ic("alert-triangle")}<div>${esc(S.error || "Mouse not found.")}<br><button class="link" style="color:var(--bad-t);margin-top:4px" onclick="post('refresh')">Try again</button></div></div>`)}
+
+  <div class="${live ? "" : "dim"}" ${live ? "" : "inert"}>
+  <div class="sec" role="heading" aria-level="2">SENSOR</div>
+  <div class="card">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <div><input class="dpi" id="dpi" value="${S.dpi}" inputmode="numeric" aria-label="DPI" style="width:${String(S.dpi).length + 0.4}ch"
+          onkeydown="if(event.key==='Enter'){setDpi(this.value);this.blur()}" onblur="this.value!=String(S.dpi)&&setDpi(this.value)">
+        <span style="color:var(--t2)">DPI</span> ${info("Pointer speed. Higher DPI moves the cursor further per inch of mouse movement. Click the number to type any value from 100 to 20000.")}</div>
+      ${ui.editStages ? "" : `<button class="link" onclick="ui.editStages={active:${active},list:[${stages}]};render()">${ic("pencil")} Edit</button>`}
+    </div>
+    ${ui.err.dpi ? `<div class="err">${ui.err.dpi}</div>` : ""}
+    <div class="lbl" style="font-size:12px;margin:8px 0 6px">Stages
+      ${info("The button under the scroll wheel cycles through these. Click one to switch to it now. Edit changes how many there are (1–5) and their values.")}</div>
+    ${stageHtml}
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;margin-top:8px">
+    <span class="lbl" style="width:72px">Polling ${info("How often the mouse reports its position to the Mac. 1000 Hz (every 1 ms) feels smoothest; 125 Hz uses the least CPU but feels choppier.")}</span>
+    <div class="seg" style="flex:1">${[125, 500, 1000].map(h => `<button class="${S.poll === h ? "on" : ""}" aria-pressed="${S.poll === h}" aria-label="${h} Hz" onclick="post('poll',{hz:${h}})">${h === 1000 ? "1000 Hz" : h}</button>`).join("")}</div>
+  </div>
+
+  <div class="sec" role="heading" aria-level="2">LIGHTING</div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+    <span class="lbl" style="width:72px">Zone ${info("Which LEDs the lighting changes below affect: the logo on the palm, the scroll wheel, or both.")}</span>
+    <div class="seg" style="flex:1">${[["both", "Both"], ["logo", "Logo"], ["wheel", "Wheel"]].map(([z, l]) =>
+        `<button class="${S.zone === z ? "on" : ""}" aria-pressed="${S.zone === z}" onclick="post('zone',{zone:'${z}'})">${l}</button>`).join("")}</div>
+  </div>
+  <div class="fx">${EFFECTS.map(([k, l, i, d]) => `<button class="${eff === k ? "on" : ""}" aria-pressed="${eff === k}" aria-description="${d}" onclick="post('effect',{effect:'${k}'})">${ic(i)}${l}<span class="tip" aria-hidden="true">${d}</span></button>`).join("")}</div>
+  <div class="small" style="margin:6px 2px 0;display:flex;align-items:center;gap:4px">Shows the effect last set here
+    ${info("The mouse can't report which effect it's running, so the app remembers what it last set. Effects changed by other apps won't show here.")}</div>
+  ${colourHtml}
+  <div class="lbl" style="font-size:12px;margin:14px 2px 6px">Brightness
+    ${info("Off: LEDs dark, your colours and effect are kept. Manual: you set the level. Screen: follows your MacBook screen, which macOS adjusts to the room light. Night: your level by day; while Night Shift warms your screen, colours turn amber and the LEDs dim by 40%.")}</div>
+  <div class="seg modes" role="radiogroup" aria-label="Brightness mode">${MODES.map(([m, l, i]) =>
+      `<button role="radio" aria-checked="${mode === m}" class="${mode === m ? "on" : ""}" onclick="post('mode',{mode:'${m}'})">${ic(i)}${l}</button>`).join("")}</div>
+  ${mode === "off" ? `<div class="small" style="margin:8px 2px 0">LEDs are off. Your colours and effect are kept.</div>` : `
+  <div style="display:flex;align-items:center;gap:10px;margin-top:10px">
+    <span style="color:var(--t2)">${ic("sun")}</span>
+    <input type="range" min="0" max="100" step="1" value="${pct}" id="br" aria-label="Brightness" aria-valuetext="${pct}%" oninput="bright(this.value)"
+      ${mode === "screen" ? `disabled title="Following your MacBook screen. Pick Manual to set it yourself."` : ""}>
+    <span id="brv" style="width:34px;text-align:right;color:var(--t2);font-variant-numeric:tabular-nums">${pct}%</span>
+  </div>
+  <div class="small" style="margin:6px 2px 0${mode === "screen" && !S.autoAvailable ? ";color:var(--bad-t)" : ""}">${
+    mode === "screen" ? (S.autoAvailable ? "Following your MacBook screen. It fades along as the room light changes."
+                                         : "Your MacBook screen isn't available (lid closed or external monitor only), so the level stays where it is.")
+    : mode === "night" ? (S.nightOn ? `<span style="color:var(--amber)">Night Shift is on:</span> warmer colours, 40% dimmer. The slider sets your daytime level.`
+                                    : "Normal for now. Turns warmer and dimmer when Night Shift starts (System Settings → Displays).")
+    : "You set the level."}</div>`}
+  </div>
+
+  <div class="sec btn" role="heading" aria-level="2">BUTTONS<span class="rule"></span>
+    <button class="link" style="letter-spacing:0;font-weight:400" onclick="post('resetButtons')" title="Set all three buttons back to Normal">${ic("arrow-back-up")} Reset all</button></div>
+  <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px">
+    <svg width="48" height="72" viewBox="0 0 70 104" role="img" aria-label="Mouse seen from above, buttons numbered">
+      <path d="M35 4 C58 4 64 26 64 52 C64 82 54 100 35 100 C16 100 6 82 6 52 C6 26 12 4 35 4 Z" style="fill:var(--c);stroke:var(--ln)" stroke-width="1.5"/>
+      <line x1="35" y1="4" x2="35" y2="38" style="stroke:var(--ln)" stroke-width="1.5"/>
+      <rect x="31" y="14" width="8" height="16" rx="4" style="fill:var(--well);stroke:var(--g)" stroke-width="1.5"/>
+      <rect x="2" y="40" width="6" height="12" rx="2" style="fill:var(--g)"/><rect x="2" y="56" width="6" height="12" rx="2" style="fill:var(--g)"/>
+      <text x="16" y="50" font-size="11" style="fill:var(--t)">2</text><text x="16" y="66" font-size="11" style="fill:var(--t)">1</text>
+      <text x="44" y="26" font-size="11" style="fill:var(--t)">3</text></svg>
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;gap:6px"><span style="flex:1;display:flex;align-items:center;gap:4px">Custom button actions
+        ${info("Lets these three buttons send shortcuts or macros instead of their normal action. Works while this app runs; macOS asks for Accessibility permission the first time. Left click, right click and the DPI button can't be changed.")}</span>
+        <button class="tg${S.remapOn ? " on" : ""}" role="switch" aria-checked="${S.remapOn}" aria-label="Custom button actions" onclick="post('remap',{on:${!S.remapOn}})"></button></div>
+      ${S.remapWaiting
+        ? `<button class="small" style="margin-top:4px;color:var(--bad-t);text-align:left;cursor:pointer" onclick="post('openAccessibility')">
+             Waiting for Accessibility permission. <u>Open settings</u>, turn on DeathAdder V2, and it starts by itself.</button>`
+        : `<div class="small" style="margin-top:4px">${S.remapOn ? "On. Your actions below are active." : "When off, every button works normally."}</div>`}
+    </div>
+  </div>
+  ${btnHtml}
+  <div class="foot">
+    <div class="seg theme" role="radiogroup" aria-label="Theme">${THEMES.map(([t, l, i]) =>
+      `<button role="radio" aria-checked="${theme === t}" class="${theme === t ? "on" : ""}" title="${l}" aria-label="${l} theme" onclick="post('theme',{theme:'${t}'})">${ic(i)}${t === "system" ? "Auto" : ""}</button>`).join("")}</div>
+    <button class="link" onclick="post('quit')">${ic("power")} Quit</button>
+  </div>`;
+  size();
+}
+
+function size() { requestAnimationFrame(() => post("size", {h: $("#root").offsetHeight})); }
+function toggleRow(k) { ui.open = ui.open === k ? null : k; ui.recording = ui.macro = false; ui.err.button = null; render(); }
+function setButton(k, v) { ui.err.button = null; post("button", {name: k, action: v.trim() || "default"}); }
+function setDpi(v) {
+  const d = Number(v);
+  ui.err.dpi = Number.isInteger(d) && d >= 100 && d <= 20000 ? null : "Use a whole number from 100 to 20000.";
+  if (ui.err.dpi) return render();
+  post("dpi", {dpi: d});
+}
+function stageCount(n) {
+  const e = ui.editStages, len = e.list.length + n;
+  if (len < 1 || len > 5) return;
+  n > 0 ? e.list.push(e.list[e.list.length - 1] || 800) : e.list.pop();
+  e.active = Math.min(e.active, len);
+  render();
+}
+function saveStages() {
+  const e = ui.editStages, list = e.list.map(Number);
+  if (!list.every(d => Number.isInteger(d) && d >= 100 && d <= 20000)) { ui.err.stages = "Each stage needs a whole number from 100 to 20000."; return render(); }
+  ui.err.stages = null; ui.editStages = null;
+  post("stages", {active: e.active, list});
+}
+let brTimer;
+function bright(p) {
+  $("#brv").textContent = Math.round(p) + "%";
+  clearTimeout(brTimer);
+  brTimer = setTimeout(() => post("brightness", {level: Math.round(p * 2.55)}), 120);
+}
+function startRecord() { ui.recording = !ui.recording; ui.macro = false; render(); }
+document.addEventListener("keydown", e => {
+  if (!ui.recording) return;
+  e.preventDefault();
+  if (e.code === "Escape") { ui.recording = false; return render(); }
+  let key = CODE[e.code] || (e.code.match(/^Key([A-Z])$/) || [])[1]?.toLowerCase() || (e.code.match(/^Digit(\d)$/) || [])[1]
+            || (e.code.match(/^F(\d{1,2})$/) ? e.code.toLowerCase() : null);
+  if (!key) return;                 // a bare modifier, or a key remap.py doesn't know
+  const mods = [e.metaKey && "cmd", e.ctrlKey && "ctrl", e.altKey && "alt", e.shiftKey && "shift"].filter(Boolean);
+  ui.recording = false;
+  setButton(ui.open, [...mods, key].join("+"));
+});
+
+// --- called by app.py ---
+let LOGO = null;                    // optional; logo.png isn't in the public repo
+function setLogo(uri) { LOGO = uri; render(); }
+function setState(s) {
+  S = s;
+  if (!dragging) render();          // don't rebuild the slider out from under the pointer
+}
+let dragging = false;
+document.addEventListener("pointerdown", e => { dragging = e.target.id === "br"; });
+document.addEventListener("pointerup", () => { if (dragging) { dragging = false; render(); } });
+function buttonError(msg) { ui.err.button = msg; render(); }
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.style.display = "none", 5000);
+}
+render();
+post("ready");
+</script>
+</body>
+</html>

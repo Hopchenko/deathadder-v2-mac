@@ -1,0 +1,19 @@
+# Python / build output
+.venv/
+build/
+dist/
+__pycache__/
+*.pyc
+*.egg-info/
+
+# Razer's logo is a trademark: keep it local only (the app falls back to a mouse icon without it)
+logo.png
+icon.icns
+razer-logo*.png
+
+# Signing material, if ever exported
+*.p12
+*.pem
+*.cer
+
+.DS_Store
