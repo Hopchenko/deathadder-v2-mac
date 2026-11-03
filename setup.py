@@ -11,7 +11,7 @@ setup(
     app=["app.py"],
     name="DeathAdder V2",
     options={"py2app": {
-        "includes": ["razer_da_v2", "remap", "ambient", "hid", "_math_integer", "WebKit", "ServiceManagement"],
+        "includes": ["razer_da_v2", "remap", "ambient", "hud", "hid", "_math_integer", "WebKit", "ServiceManagement"],
         "resources": ["ui.html", *OPTIONAL["resources"]],
         **OPTIONAL["icon"],
         "plist": {

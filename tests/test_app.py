@@ -39,9 +39,14 @@ def make_app(screen=0.5, night=False):
     a.fading = False
     a.mouse = lambda fn, quiet=False: fn(FakeMouse(a.calls)) or True
     a.save = a.push = lambda: None
-    a.screen, a.night = [screen], [night]
+    a.run = lambda fn: fn()                                   # no worker thread in tests
+    a.sleep_off, a.busy_light, a.dpi_popup = True, False, True
+    a.sleeping = a.busy_on = a.screen_asleep = a.locked = False
+    a.pre_sleep, a.dpi_set_at = None, 0.0
+    a.screen, a.night, a.mic = [screen], [night], [False]
     ambient.screen_brightness = lambda: a.screen[0]
     ambient.night_shift_active = lambda: a.night[0]
+    ambient.mic_or_camera_in_use = lambda: a.mic[0]
     return a
 
 
@@ -117,6 +122,116 @@ class Brightness(unittest.TestCase):
         self.assertEqual(level(a), 200)
         a.on_mode("bogus")
         self.assertEqual(a.light_mode, "manual")
+
+
+class BusyLight(unittest.TestCase):
+    def effects(self, a):
+        return [c for c in a.calls if c[0] == "effect"]
+
+    def test_red_during_a_call_then_back(self):
+        a = make_app()
+        a.busy_light = True
+        a.mic[0] = True
+        a.follow_mac(check_night=True)
+        self.assertEqual(self.effects(a)[-1][2:], ("static", [A.BUSY_RED]))
+        self.assertEqual(level(a), A.BUSY_LEVEL)
+        a.mic[0] = False
+        a.follow_mac(check_night=True)
+        self.assertEqual(self.effects(a)[-1][2:], ("static", [(0, 0, 255)]))   # your effect and colour again
+        self.assertEqual(level(a), 200)
+        self.assertEqual(a.lighting["logo"]["colors"], [[0, 0, 255]])        # never saved as red
+
+    def test_off_unless_switched_on(self):
+        a = make_app()
+        a.mic[0] = True
+        a.follow_mac(check_night=True)
+        self.assertEqual(self.effects(a), [])
+
+    def test_shows_even_in_off_mode_and_goes_dark_after(self):
+        a = make_app()
+        a.on_mode("off")
+        a.busy_light, a.mic[0] = True, True
+        a.follow_mac(check_night=True)
+        self.assertEqual(level(a), A.BUSY_LEVEL)
+        a.mic[0] = False
+        a.follow_mac(check_night=True)
+        self.assertEqual(level(a), 0)
+
+    def test_changing_the_effect_during_a_call_waits_until_it_ends(self):
+        a = make_app()
+        a.busy_light, a.mic[0] = True, True
+        a.follow_mac(check_night=True)
+        n = len(self.effects(a))
+        a.apply_effect("spectrum", 0)
+        self.assertEqual(len(self.effects(a)), n)                              # still red
+        self.assertEqual(a.lighting["logo"]["effect"], "spectrum")            # but saved
+        a.mic[0] = False
+        a.follow_mac(check_night=True)
+        self.assertEqual(self.effects(a)[-1][2], "spectrum")
+
+
+class Sleep(unittest.TestCase):
+    def test_dark_on_sleep_and_exactly_restored_on_wake(self):
+        a = make_app()
+        a.state["brightness"] = {"logo": 150, "wheel": 40}                    # zones can differ
+        a.on_power("screen", True)
+        self.assertTrue(a.sleeping)
+        self.assertEqual(a.state["brightness"], {"logo": 0, "wheel": 0})
+        ticks(a, 5)
+        self.assertEqual(a.state["brightness"], {"logo": 0, "wheel": 0})     # nothing wakes them early
+        a.on_power("screen", False)
+        self.assertEqual(a.state["brightness"], {"logo": 150, "wheel": 40})
+
+    def test_lock_counts_until_unlocked(self):
+        a = make_app()
+        a.on_power("lock", True)
+        a.on_power("screen", True)
+        a.on_power("screen", False)                                           # screen wakes to the lock screen
+        self.assertTrue(a.sleeping)
+        a.on_power("lock", False)
+        self.assertFalse(a.sleeping)
+        self.assertEqual(level(a), 100)
+
+    def test_switch_off_means_leds_stay_on(self):
+        a = make_app()
+        a.sleep_off = False
+        a.on_power("screen", True)
+        self.assertFalse(a.sleeping)
+        self.assertEqual(level(a), 100)
+
+
+class DpiPopup(unittest.TestCase):
+    def setUp(self):
+        self.shown = []
+        self._orig = A.AppHelper.callAfter
+        A.AppHelper.callAfter = lambda fn, *args: self.shown.append(args)
+
+    def tearDown(self):
+        A.AppHelper.callAfter = self._orig
+
+    def app(self):
+        a = make_app()
+        a.state.update(dpi=(1600, 1600), dpi_stages=(3, [400, 800, 1600, 3200]))
+        return a
+
+    def test_shows_for_the_dpi_button(self):
+        a = self.app()
+        a.apply_synced(dict(a.state, dpi=(3200, 3200), dpi_stages=(4, [400, 800, 1600, 3200])))
+        self.assertEqual(self.shown, [(3200, 4, [400, 800, 1600, 3200])])
+
+    def test_not_for_changes_made_in_the_app(self):
+        a = self.app()
+        a.dpi_set_at = A.time.time()
+        a.apply_synced(dict(a.state, dpi=(800, 800)))
+        self.assertEqual(self.shown, [])
+
+    def test_not_when_switched_off_or_unchanged(self):
+        a = self.app()
+        a.dpi_popup = False
+        a.apply_synced(dict(a.state, dpi=(800, 800)))
+        a.dpi_popup = True
+        a.apply_synced(dict(a.state))
+        self.assertEqual(self.shown, [])
 
 
 class Settings(unittest.TestCase):

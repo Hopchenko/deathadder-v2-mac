@@ -17,13 +17,16 @@ import objc
 from AppKit import (NSApp, NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua, NSApplication,
                     NSApplicationActivationPolicyAccessory, NSColor, NSColorPanel, NSColorSpace, NSImage,
                     NSMakeRect, NSMakeSize, NSMinYEdge, NSPopover, NSPopoverBehaviorTransient, NSScreen, NSStatusBar,
-                    NSVariableStatusItemLength, NSViewController)
-from Foundation import NSDictionary, NSObject, NSTimer, NSURL
+                    NSVariableStatusItemLength, NSViewController, NSWorkspace, NSWorkspaceDidWakeNotification,
+                    NSWorkspaceScreensDidSleepNotification, NSWorkspaceScreensDidWakeNotification,
+                    NSWorkspaceWillSleepNotification)
+from Foundation import NSDictionary, NSDistributedNotificationCenter, NSObject, NSTimer, NSURL
 from PyObjCTools import AppHelper
 from ServiceManagement import SMAppService
 from WebKit import WKWebView, WKWebViewConfiguration
 
 import ambient
+import hud
 import razer_da_v2 as razer
 import remap
 
@@ -33,9 +36,11 @@ SYNC_SECONDS = 1.0     # how often we re-read DPI from the mouse (catches the DP
 WIDTH = 360
 LIGHT_MODES = ("off", "manual", "screen", "night")
 # Page messages handled on the main thread (windows, panels, system settings, event tap); the rest go to the worker.
-MAIN_THREAD_CMDS = {"ready", "size", "theme", "login", "quit", "openSettings", "openAccessibility", "customColour",
+MAIN_THREAD_CMDS = {"ready", "size", "theme", "login", "dpiPopup", "quit", "openSettings", "openAccessibility", "customColour",
                     "remap", "button", "resetButtons"}
 THEMES = {"system": None, "light": NSAppearanceNameAqua, "dark": NSAppearanceNameDarkAqua}   # popover appearance
+BUSY_RED = (255, 0, 0)
+BUSY_LEVEL = 200        # busy light brightness (0-255)
 MIN_AUTO = 12           # lowest LED level 'match screen brightness' goes to (0-255)
 # UI effect key -> (device effect, number of colours it uses)
 EFFECTS = {"static": ("static", 1), "breath1": ("breath", 1), "breath2": ("breath", 2), "breathR": ("breath", 0),
@@ -105,6 +110,18 @@ class Bridge(NSObject, protocols=[objc.protocolNamed("WKScriptMessageHandler")])
     def tick_(self, timer):
         self.app.tick()
 
+    def screenSlept_(self, note):
+        self.app.on_power("screen", True)
+
+    def screenWoke_(self, note):
+        self.app.on_power("screen", False)
+
+    def locked_(self, note):
+        self.app.on_power("lock", True)
+
+    def unlocked_(self, note):
+        self.app.on_power("lock", False)
+
 
 class App:
     def __init__(self):
@@ -123,6 +140,16 @@ class App:
         # off | manual | screen (follow the Mac screen) | night (your level, warmer + dimmer during Night Shift)
         self.light_mode = light_mode_from(cfg)
         self.theme = cfg.get("theme") if cfg.get("theme") in THEMES else "system"
+        self.sleep_off = cfg.get("sleep_off", True)       # LEDs off while the Mac sleeps or is locked
+        self.busy_light = cfg.get("busy_light", False)    # red while a mic or camera is in use
+        self.dpi_popup = cfg.get("dpi_popup", True)       # overlay when the mouse's DPI button is pressed
+        self.sleeping = False                             # LEDs currently off for sleep/lock
+        self.screen_asleep = self.locked = False
+        self.pre_sleep = None                             # brightness per zone to restore on wake
+        self.busy_on = False                              # busy light currently showing
+        self.dpi_set_at = 0.0                             # when the app itself last changed DPI
+        self.hud = None
+        self.hud_gen = 0
         self.night_on = False                                    # night tint currently applied
         self.ambient_ticks = 0
         self.fading = False
@@ -134,6 +161,7 @@ class App:
         self.save_lock = threading.Lock()
         self.remapper = remap.Remapper()
         self.build_ui()
+        self.watch_power()
         if self.want_remap:
             self.start_remap(prompt=False)
         NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(0.2, self.bridge, "tick:", None, True)
@@ -171,6 +199,18 @@ class App:
         self.popover.setBehavior_(NSPopoverBehaviorTransient)
         self.apply_theme()
         self.update_status_item()
+
+    def watch_power(self):
+        """Screen sleep, system sleep and lock/unlock, so the LEDs can go dark with the Mac."""
+        wc = NSWorkspace.sharedWorkspace().notificationCenter()
+        for name, sel in [(NSWorkspaceScreensDidSleepNotification, "screenSlept:"),
+                          (NSWorkspaceWillSleepNotification, "screenSlept:"),
+                          (NSWorkspaceScreensDidWakeNotification, "screenWoke:"),
+                          (NSWorkspaceDidWakeNotification, "screenWoke:")]:
+            wc.addObserver_selector_name_object_(self.bridge, sel, name, None)
+        dc = NSDistributedNotificationCenter.defaultCenter()
+        dc.addObserver_selector_name_object_(self.bridge, "locked:", "com.apple.screenIsLocked", None)
+        dc.addObserver_selector_name_object_(self.bridge, "unlocked:", "com.apple.screenIsUnlocked", None)
 
     def toggle(self):
         if self.popover.isShown():
@@ -221,7 +261,9 @@ class App:
                 "colors": [to_hex(c) for c in self.colors],
                 "brightness": s.get("brightness", {}).get(zone, 0),
                 "lightsOn": any(s.get("brightness", {}).values()),
-                "lightMode": self.light_mode, "theme": self.theme, "login": self.login_state(), "autoAvailable": ambient.screen_brightness() is not None,
+                "lightMode": self.light_mode, "theme": self.theme, "login": self.login_state(),
+                "sleepOff": self.sleep_off, "busyLight": self.busy_light, "busyOn": self.busy_on,
+                "dpiPopup": self.dpi_popup, "autoAvailable": ambient.screen_brightness() is not None,
                 "nightOn": self.night_on, "yourLevel": self.saved_brightness,
                 "remapOn": self.want_remap, "remapWaiting": self.want_remap and not self.remap_on,
                 "buttons": self.buttons}
@@ -298,15 +340,18 @@ class App:
 
     # sensor
     def on_dpi(self, dpi):
+        self.dpi_set_at = time.time()
         self.mouse(lambda m: m.set_dpi(int(dpi)))
         self.refresh()
 
     def on_stage(self, i):
+        self.dpi_set_at = time.time()
         _, stages = self.state["dpi_stages"]
         self.mouse(lambda m: m.set_dpi_stages(int(i), stages))
         self.refresh()
 
     def on_stages(self, active, list):
+        self.dpi_set_at = time.time()
         values = [int(d) for d in list]
         self.mouse(lambda m: m.set_dpi_stages(int(active), values))
         self.refresh()
@@ -407,25 +452,28 @@ class App:
             # LEDs look much brighter at low duty than their number suggests, so square the screen value
             # (roughly the eye's gamma) to make equal screen steps look like equal LED steps.
             level = round(MIN_AUTO + screen ** 2 * (255 - MIN_AUTO))   # never fully dark while lights are on
+        if self.busy_on:
+            return BUSY_LEVEL
         return round(level * 0.6) if self.night_on else level
 
     def follow_mac(self, force=False, check_night=True):
         """Every tick (0.2 s): fade the LEDs towards the screen brightness. Night Shift is checked every 2 s.
         force=True jumps straight to the target (after a switch is flipped)."""
-        if not self.state:
+        if not self.state or self.sleeping:          # asleep/locked: LEDs stay off until wake
             return
-        night = bool(self.night_calm and ambient.night_shift_active()) if check_night or force else self.night_on
-        if night != self.night_on:
-            self.night_on = night
-            eff, n = self.current_effect()
-            if n:                                        # only effects that use your colours get tinted
-                self.apply_effect(eff, n, quiet=True)
+        if check_night or force:                     # mic/camera and Night Shift: every 2 s
+            busy = bool(self.busy_light and ambient.mic_or_camera_in_use())
+            night = bool(self.night_calm and ambient.night_shift_active())
+        else:
+            busy, night = self.busy_on, self.night_on
+        if busy != self.busy_on or night != self.night_on:
+            self.busy_on, self.night_on = busy, night
+            self.send_lighting()                     # red for a call / warm tint at night / your normal effect
+            self.push()
             force = True
-        if not (self.auto_bright or self.night_calm or force):
+        if not (self.auto_bright or self.night_calm or self.busy_on or force):
             return
-        if self.light_mode == "off":
-            return
-        target = self.target_level()
+        target = 0 if self.light_mode == "off" and not self.busy_on else self.target_level()
         cur = max(self.state["brightness"].values())
         diff = target - cur
         # Dead band of 2 stops ±1 flicker from tiny sensor wobble; once fading, go all the way.
@@ -436,11 +484,6 @@ class App:
         self.fading = cur + step != target
         self.set_brightness(cur + step, list(razer.ZONES), remember=False, quiet=True)
 
-    def current_effect(self):
-        cur = self.lighting["logo" if self.zone == "both" else self.zone]
-        return cur["effect"], len(cur.get("colors", []))
-
-    # buttons
     def on_remap(self, on):
         self.want_remap = bool(on)
         if not on:
@@ -487,7 +530,8 @@ class App:
                 json.dump({"zone": self.zone, "lighting": self.lighting, "colors": self.colors,
                            "buttons": self.buttons, "remap_on": self.want_remap,
                            "saved_brightness": self.saved_brightness, "light_mode": self.light_mode,
-                           "theme": self.theme}, f, indent=2)
+                           "theme": self.theme, "sleep_off": self.sleep_off, "busy_light": self.busy_light,
+                           "dpi_popup": self.dpi_popup}, f, indent=2)
             os.replace(CONFIG + ".tmp", CONFIG)      # atomic: a crash mid-write never leaves half a file
 
     def zones(self):
@@ -539,17 +583,93 @@ class App:
                 self.run(lambda new=new: self.apply_synced(new))
 
     def apply_synced(self, new):
+        old = self.state
         self.state, self.error = new, None
+        changed = old and (old["dpi"] != new["dpi"] or old["dpi_stages"][0] != new["dpi_stages"][0])
+        if changed and self.dpi_popup and time.time() - self.dpi_set_at > 3:   # the DPI button, not the app
+            AppHelper.callAfter(self.show_hud, new["dpi"][0], *new["dpi_stages"])
         self.push()
 
     def apply_effect(self, effect, n, quiet=False):
         colors = self.colors[:n]
         sent = [ambient.warm(c) for c in colors] if self.night_on else colors
-        if self.mouse(lambda m: [m.set_effect(z, effect, sent) for z in self.zones()], quiet) is not None:
+        if self.busy_on or self.sleeping:            # saved now, shown when the call or sleep ends
+            ok = True
+        else:
+            ok = self.mouse(lambda m: [m.set_effect(z, effect, sent) for z in self.zones()], quiet) is not None
+        if ok:
             for z in self.zones():
                 self.lighting[z] = {"effect": effect, "colors": [list(c) for c in colors]}
             self.save()
         self.push()
+
+    def send_lighting(self):
+        """Show what should be on the LEDs now without changing your saved lighting: red during a call,
+        otherwise each zone's own effect (warm-tinted at night)."""
+        def fn(m):
+            for z in razer.ZONES:
+                if self.busy_on:
+                    m.set_effect(z, "static", [BUSY_RED])
+                else:
+                    cur = self.lighting[z]
+                    cols = [tuple(c) for c in cur.get("colors", [])]
+                    m.set_effect(z, cur["effect"], [ambient.warm(c) for c in cols] if self.night_on else cols)
+        self.mouse(fn, quiet=True)
+
+    # --- sleep / lock ---------------------------------------------------------
+    def on_power(self, what, value):
+        """Main thread, from macOS notifications: what is 'screen' (asleep) or 'lock' (locked)."""
+        if what == "screen":
+            self.screen_asleep = value
+        else:
+            self.locked = value
+        self.run(self.update_sleep)
+
+    def update_sleep(self):
+        want = self.sleep_off and (self.screen_asleep or self.locked)
+        if want == self.sleeping or not self.state:
+            return
+        if want:
+            self.pre_sleep = dict(self.state["brightness"])
+            self.set_brightness(0, list(razer.ZONES), remember=False, quiet=True)
+            self.sleeping = True
+        else:
+            self.sleeping = False
+            before = self.pre_sleep or {}
+            if self.mouse(lambda m: [m.set_brightness(z, lvl) for z, lvl in before.items()], quiet=True) is not None:
+                self.state["brightness"].update(before)
+            if self.auto_bright or self.night_calm or self.busy_light:
+                self.follow_mac(force=True)          # catch up on a call, Night Shift or screen changes
+        self.push()
+
+    def on_sleepOff(self, on):
+        self.sleep_off = bool(on)
+        self.save()
+        self.update_sleep()
+        self.push()
+
+    def on_busyLight(self, on):
+        self.busy_light = bool(on)
+        self.save()
+        self.follow_mac(force=True)
+        self.push()
+
+    # --- DPI pop-up -------------------------------------------------------------
+    def on_dpiPopup(self, on):
+        self.dpi_popup = bool(on)
+        self.save()
+        if on:
+            s = self.state or {}
+            self.show_hud(s.get("dpi", (0,))[0], *s.get("dpi_stages", (1, [])))   # a preview
+        self.push()
+
+    def show_hud(self, dpi, active, stages):
+        """Main thread: a small overlay like the volume pop-up, centred on the screen with the pointer."""
+        if not dpi:
+            return
+        if self.hud is None:
+            self.hud = hud.Hud()
+        self.hud.show(dpi, active, len(stages))
 
     def set_colour(self, slot, rgb, quiet=False):
         self.colors[slot] = tuple(rgb)
