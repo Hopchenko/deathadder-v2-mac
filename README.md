@@ -49,13 +49,16 @@ Click the icon in the menu bar and every setting is in one popover.
 </p>
 
 ### Everything else
+- **Open at login:** a switch next to Quit (in the installed app).
 - **Light and dark themes:** Auto (follows macOS), Light or Dark, chosen at the bottom of the popover.
 - **Hover help:** the ⓘ icons explain the advanced settings in plain words.
-- **Accessible:** text meets WCAG AA contrast in both themes. Every control has a VoiceOver name and announces when
+- **Accessible:** text meets WCAG AA contrast in light and dark themes. Every control has a VoiceOver name and announces when
   it's selected, click targets are at least 24 points, and the app respects "Reduce motion".
 - **Clear errors:** if macOS blocks the mouse, the popover says so, and clicking the message opens the right
   System Settings page.
 - **Remembers everything:** settings are saved, and the menu bar shows the current DPI.
+- **Stays responsive:** USB talk happens on a background thread, so a slow reply from the mouse never freezes the
+  popover.
 - **Command-line tool:** `python razer_da_v2.py status | dpi 1600 | color 00ff88 | poll 1000 …`
 
 The mouse commands come from the open-source [OpenRazer](https://github.com/openrazer/openrazer) Linux driver, where
@@ -70,12 +73,21 @@ they're enabled for this exact model.
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install hidapi pyobjc-framework-Cocoa pyobjc-framework-Quartz pyobjc-framework-WebKit py2app
+.venv/bin/pip install -r requirements.txt
 .venv/bin/python app.py
 ```
 
 macOS asks for **Input Monitoring** permission (to talk to the mouse) and, if you turn on custom button actions,
 **Accessibility** permission (to remap buttons).
+
+## Tests
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+These need no mouse and open no windows. They cover the brightness fades, Night mode, settings migration and safe
+saving, which commands run on the background thread, the macro parser, and the USB report format.
 
 ## Build the .app
 
@@ -102,6 +114,7 @@ the logo with your current LED colour.
 | `razer_da_v2.py` | Talks to the mouse over USB HID; also the command-line tool |
 | `remap.py` | Button remapping and macros (event tap) |
 | `ambient.py` | Reads the Mac's screen brightness and Night Shift state |
+| `tests/` | Unit tests (no hardware needed) |
 | `build.sh`, `make_signing_cert.sh`, `setup.py` | Building and signing the .app |
 
 Settings are saved in `~/Library/Application Support/RazerDAV2/config.json`.

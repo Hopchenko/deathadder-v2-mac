@@ -6,8 +6,8 @@
 <style>
 /* Dark is the default; light applies when macOS (or the theme picker) says so. app.py sets the
    popover's NSAppearance, and WebKit reports it to the page as prefers-color-scheme. */
-:root{--g:#44d62c;--ink:#0b0d0b;--bg:rgba(11,13,11,.9);--c:#171a17;--well:#0b0d0b;--ln:#2a2f2a;--t:#e8ede8;--t2:#8a948a;--t3:#5f685f;
-  --bad:#ff5a4f;--bad-bg:#2a1414;--bad-ln:#5a2622;--bad-t:#ffb3ad;--tip:#252a25;--tip-ln:#3a413a;--amber:#ffb066;--fill:#44d62c;--field-ln:#4a524a;--on-edge:transparent;color-scheme:dark}
+:root{--g:#44d62c;--ink:#0b0d0b;--bg:rgba(11,13,11,.9);--c:#171a17;--well:#0b0d0b;--ln:#2a2f2a;--t:#e8ede8;--t2:#8a948a;--t3:#868f86;
+  --bad:#ff5a4f;--bad-bg:#2a1414;--bad-ln:#5a2622;--bad-t:#ffb3ad;--tip:#252a25;--tip-ln:#3a413a;--amber:#ffb066;--fill:#44d62c;--field-ln:#687168;--on-edge:transparent;color-scheme:dark}
 @media (prefers-color-scheme: light){
 :root{--g:#13780a;--ink:#0b0d0b;--bg:rgba(246,248,246,.94);--c:#ffffff;--well:#eef2ee;--ln:#d9e0d9;--t:#141a14;--t2:#4f5a4f;--t3:#5d685d;
   --bad:#c8302a;--bad-bg:#fdecea;--bad-ln:#f3c3bf;--bad-t:#9b231e;--tip:#ffffff;--tip-ln:#d9e0d9;--amber:#9a5200;--fill:#44d62c;--field-ln:#7f897f;--on-edge:#187010;color-scheme:light}
@@ -291,6 +291,10 @@ function render() {
   <div class="foot">
     <div class="seg theme" role="radiogroup" aria-label="Theme">${THEMES.map(([t, l, i]) =>
       `<button role="radio" aria-checked="${theme === t}" class="${theme === t ? "on" : ""}" title="${l}" aria-label="${l} theme" onclick="post('theme',{theme:'${t}'})">${ic(i)}${t === "system" ? "Auto" : ""}</button>`).join("")}</div>
+    ${S.login && S.login !== "unavailable" ? `<span class="lbl" style="gap:6px;font-size:12px">Open at login
+      ${S.login === "approval" ? info("macOS is blocking it. Allow DeathAdder V2 in System Settings → General → Login Items.", true) : ""}
+      <button class="tg${S.login === "on" ? " on" : ""}" role="switch" aria-checked="${S.login === "on"}" aria-label="Open at login"
+        onclick="post('login',{on:${S.login !== "on"}})"></button></span>` : ""}
     <button class="link" onclick="post('quit')">${ic("power")} Quit</button>
   </div>`;
   size();

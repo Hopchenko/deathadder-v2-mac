@@ -5,8 +5,10 @@ we answer by calling setState(json) / toast(msg) / buttonError(msg) in the page.
 import base64
 import ctypes
 import json
+import queue
 import os
 import subprocess
+import sys
 import threading
 import time
 import traceback
@@ -18,6 +20,7 @@ from AppKit import (NSApp, NSAppearance, NSAppearanceNameAqua, NSAppearanceNameD
                     NSVariableStatusItemLength, NSViewController)
 from Foundation import NSDictionary, NSObject, NSTimer, NSURL
 from PyObjCTools import AppHelper
+from ServiceManagement import SMAppService
 from WebKit import WKWebView, WKWebViewConfiguration
 
 import ambient
@@ -29,6 +32,9 @@ HERE = os.environ.get("RESOURCEPATH", os.path.dirname(os.path.abspath(__file__))
 SYNC_SECONDS = 1.0     # how often we re-read DPI from the mouse (catches the DPI button)
 WIDTH = 360
 LIGHT_MODES = ("off", "manual", "screen", "night")
+# Page messages handled on the main thread (windows, panels, system settings, event tap); the rest go to the worker.
+MAIN_THREAD_CMDS = {"ready", "size", "theme", "login", "quit", "openSettings", "openAccessibility", "customColour",
+                    "remap", "button", "resetButtons"}
 THEMES = {"system": None, "light": NSAppearanceNameAqua, "dark": NSAppearanceNameDarkAqua}   # popover appearance
 MIN_AUTO = 12           # lowest LED level 'match screen brightness' goes to (0-255)
 # UI effect key -> (device effect, number of colours it uses)
@@ -72,6 +78,14 @@ def ask_accessibility():
     return lib.AXIsProcessTrustedWithOptions(objc.pyobjc_id(opts))
 
 
+def light_mode_from(cfg):
+    """Saved brightness mode; older configs had two separate switches instead."""
+    mode = cfg.get("light_mode")
+    if mode in LIGHT_MODES:
+        return mode
+    return "screen" if cfg.get("auto_brightness") else "night" if cfg.get("night_calm") else "manual"
+
+
 def effect_key(light):
     eff, n = light.get("effect"), len(light.get("colors", []))
     return next((k for k, (e, c) in EFFECTS.items() if e == eff and (e != "breath" or c == n)), None)
@@ -107,10 +121,7 @@ class App:
         self.retry_ticks = 0
         self.saved_brightness = cfg.get("saved_brightness", 178)
         # off | manual | screen (follow the Mac screen) | night (your level, warmer + dimmer during Night Shift)
-        mode = cfg.get("light_mode")
-        if mode not in LIGHT_MODES:                              # older config had two separate switches
-            mode = "screen" if cfg.get("auto_brightness") else "night" if cfg.get("night_calm") else "manual"
-        self.light_mode = mode
+        self.light_mode = light_mode_from(cfg)
         self.theme = cfg.get("theme") if cfg.get("theme") in THEMES else "system"
         self.night_on = False                                    # night tint currently applied
         self.ambient_ticks = 0
@@ -120,12 +131,16 @@ class App:
         self.pending_colour = None
         self.panel_slot = 0
         self.lock = threading.Lock()         # one HID conversation at a time (UI actions + sync thread)
+        self.save_lock = threading.Lock()
         self.remapper = remap.Remapper()
         self.build_ui()
         if self.want_remap:
             self.start_remap(prompt=False)
         NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(0.2, self.bridge, "tick:", None, True)
-        self.refresh(quiet=True)
+        self.jobs = queue.Queue()                # USB work runs here, off the main thread, one job at a time
+        self.follow_pending = False
+        threading.Thread(target=self.worker, daemon=True).start()
+        self.run(lambda: self.refresh(quiet=True))
         threading.Thread(target=self.sync_loop, daemon=True).start()
 
     # --- window plumbing ---------------------------------------------------
@@ -167,10 +182,30 @@ class App:
         self.web.window().makeFirstResponder_(self.web)
         self.push()
 
+    def run(self, fn):
+        """Queue fn for the worker thread."""
+        self.jobs.put(fn)
+
+    def worker(self):
+        while True:
+            fn = self.jobs.get()
+            try:
+                fn()
+            except Exception as e:               # never let a UI action kill the app
+                traceback.print_exc()
+                self.toast(f"Something went wrong: {e}")
+                self.push()
+
     def js(self, code):
+        if threading.current_thread() is not threading.main_thread():
+            AppHelper.callAfter(self.js, code)   # WebKit and AppKit only work on the main thread
+            return
         self.web.evaluateJavaScript_completionHandler_(code, None)
 
     def push(self):
+        if threading.current_thread() is not threading.main_thread():
+            AppHelper.callAfter(self.push)
+            return
         self.update_status_item()
         self.js(f"setState({json.dumps(self.ui_state())})")
 
@@ -186,7 +221,7 @@ class App:
                 "colors": [to_hex(c) for c in self.colors],
                 "brightness": s.get("brightness", {}).get(zone, 0),
                 "lightsOn": any(s.get("brightness", {}).values()),
-                "lightMode": self.light_mode, "theme": self.theme, "autoAvailable": ambient.screen_brightness() is not None,
+                "lightMode": self.light_mode, "theme": self.theme, "login": self.login_state(), "autoAvailable": ambient.screen_brightness() is not None,
                 "nightOn": self.night_on, "yourLevel": self.saved_brightness,
                 "remapOn": self.want_remap, "remapWaiting": self.want_remap and not self.remap_on,
                 "buttons": self.buttons}
@@ -204,12 +239,15 @@ class App:
         handler = getattr(self, "on_" + cmd, None)
         if handler is None:
             return
-        try:
-            handler(**body)
-        except Exception as e:                   # never let a UI action kill the app
-            traceback.print_exc()
-            self.toast(f"Something went wrong: {e}")
-            self.push()
+        if cmd in MAIN_THREAD_CMDS:              # window/system calls stay on the main thread
+            try:
+                handler(**body)
+            except Exception as e:               # never let a UI action kill the app
+                traceback.print_exc()
+                self.toast(f"Something went wrong: {e}")
+                self.push()
+        else:                                    # anything that may talk to the mouse
+            self.run(lambda: handler(**body))
 
     def on_ready(self):
         if self.logo:
@@ -235,6 +273,21 @@ class App:
         """None follows macOS; WebKit passes the popover's appearance to the page as prefers-color-scheme."""
         name = THEMES[self.theme]
         self.popover.setAppearance_(NSAppearance.appearanceNamed_(name) if name else None)
+
+    def login_state(self):
+        """'on' | 'off' | 'approval' (blocked in System Settings) | 'unavailable' (running from source, not the .app)."""
+        if getattr(sys, "frozen", None) != "macosx_app":
+            return "unavailable"
+        return {1: "on", 2: "approval"}.get(SMAppService.mainAppService().status(), "off")
+
+    def on_login(self, on):
+        svc = SMAppService.mainAppService()
+        ok, err = (svc.registerAndReturnError_(None) if on else svc.unregisterAndReturnError_(None))
+        if not ok:
+            self.toast(f"Couldn't change Open at login: {err.localizedDescription() if err else 'unknown error'}")
+        if self.login_state() == "approval":                 # macOS wants you to allow it in Login Items
+            SMAppService.openSystemSettingsLoginItems()
+        self.push()
 
     def on_openSettings(self):
         self.popover.performClose_(None)
@@ -297,18 +350,26 @@ class App:
         if self.pending_colour is not None:
             (slot, rgb), self.pending_colour = self.pending_colour, None
             if rgb != self.colors[slot]:
-                self.set_colour(slot, rgb, quiet=True)
+                self.run(lambda: self.set_colour(slot, rgb, quiet=True))
         self.ambient_ticks += 1
         night_check = self.ambient_ticks >= 10      # Night Shift: every 2 s; brightness: every tick
         if night_check:
             self.ambient_ticks = 0
-        self.follow_mac(check_night=night_check)
+        if not self.follow_pending:                 # skip a tick rather than pile up work if USB is slow
+            self.follow_pending = True
+            self.run(lambda: self.follow_tick(night_check))
         # Waiting for Accessibility permission: retry every 2 s so it starts as soon as it's granted.
         if self.want_remap and not self.remap_on:
             self.retry_ticks += 1
             if self.retry_ticks >= 10:
                 self.retry_ticks = 0
                 self.start_remap(prompt=False)
+
+    def follow_tick(self, check_night):
+        try:
+            self.follow_mac(check_night=check_night)
+        finally:
+            self.follow_pending = False
 
     def on_brightness(self, level):
         level = max(0, min(255, int(level)))
@@ -421,10 +482,13 @@ class App:
     # --- mouse / state -----------------------------------------------------
     def save(self):
         os.makedirs(os.path.dirname(CONFIG), exist_ok=True)
-        with open(CONFIG, "w") as f:
-            json.dump({"zone": self.zone, "lighting": self.lighting, "colors": self.colors,
-                       "buttons": self.buttons, "remap_on": self.want_remap,
-                       "saved_brightness": self.saved_brightness, "light_mode": self.light_mode, "theme": self.theme}, f, indent=2)
+        with self.save_lock:                         # main thread and worker both save
+            with open(CONFIG + ".tmp", "w") as f:
+                json.dump({"zone": self.zone, "lighting": self.lighting, "colors": self.colors,
+                           "buttons": self.buttons, "remap_on": self.want_remap,
+                           "saved_brightness": self.saved_brightness, "light_mode": self.light_mode,
+                           "theme": self.theme}, f, indent=2)
+            os.replace(CONFIG + ".tmp", CONFIG)      # atomic: a crash mid-write never leaves half a file
 
     def zones(self):
         return list(razer.ZONES) if self.zone == "both" else [self.zone]
@@ -453,20 +517,26 @@ class App:
 
     def sync_loop(self):
         """Background: re-read DPI + stages so presses of the DPI button show up."""
+        m = None                                     # one connection, kept open; reopened only after an error
         while True:
             time.sleep(SYNC_SECONDS)
             try:
-                with self.lock, razer.Mouse() as m:
+                with self.lock:
+                    if m is None:
+                        m = razer.Mouse()
                     if self.state is None:
                         new = m.read_state()                      # (re)connected: read everything
                     else:
                         new = dict(self.state, dpi=m.dpi(), dpi_stages=m.dpi_stages())
             except razer.RazerError as e:
+                if m is not None:
+                    m.close()
+                    m = None
                 if self.state is not None:
-                    AppHelper.callAfter(self.set_disconnected, str(e))
+                    self.run(lambda e=e: self.set_disconnected(str(e)))
                 continue
             if new != self.state:
-                AppHelper.callAfter(self.apply_synced, new)
+                self.run(lambda new=new: self.apply_synced(new))
 
     def apply_synced(self, new):
         self.state, self.error = new, None
