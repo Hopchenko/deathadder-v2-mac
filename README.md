@@ -64,4 +64,5 @@ Settings are saved in `~/Library/Application Support/RazerDAV2/config.json`.
 
 Not affiliated with or endorsed by Razer Inc. "Razer" and "DeathAdder" are trademarks of Razer Inc.
 
-License: MIT (see `LICENSE`).
+License: MIT (see `LICENSE`). The icons in `ui.html` are from [Tabler Icons](https://tabler.io/icons),
+© 2020-2024 Paweł Kuna, also MIT.
