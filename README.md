@@ -1,23 +1,15 @@
 # DeathAdder V2 for Mac
 
 A small menu bar app for the **Razer DeathAdder V2** (USB `1532:0084`) on macOS, with no Razer Synapse needed.
-Click the icon in the menu bar and every setting is in one popover.
+Click the icon in the menu bar for a popover with four tabs: **Lighting**, **Sensor**, **Buttons** and **⚙ Settings**.
 
 <p align="center">
-  <img src="docs/popover-dark.png" width="300" alt="The popover in dark mode: DPI 2400 with five stages, two-tone lighting, brightness following the screen, and button actions for Copy and Screenshot">
+  <img src="docs/lighting-dark.png" width="300" alt="Lighting tab in dark mode: two-tone effect with Colour 1 and Colour 2, brightness following the screen">
   &nbsp;&nbsp;
-  <img src="docs/popover-light.png" width="300" alt="The same popover in light mode">
+  <img src="docs/lighting-light.png" width="300" alt="The Lighting tab in light mode">
 </p>
 
 ## Features
-
-### Sensor
-- **DPI:** shown big, and you can click the number to type any value from 100 to 20000.
-- **DPI stages:** the 1–5 presets that the button under the scroll wheel cycles through. Click one to switch to it, or
-  use **Edit** to change how many there are and their values.
-- **Stays in sync:** if you press the DPI button on the mouse, the app (and the DPI number in the menu bar) updates
-  within a second.
-- **Polling rate:** 125, 500 or 1000 Hz.
 
 ### Lighting
 - **Zones:** change the logo, the scroll wheel or both together.
@@ -33,6 +25,14 @@ Click the icon in the menu bar and every setting is in one popover.
   - **Night:** your own level during the day. While Night Shift warms your screen, the colours shift to a soft amber
     and the LEDs dim by 40%, then go back when Night Shift ends.
 
+### Sensor
+- **DPI:** shown big, and you can click the number to type any value from 100 to 20000.
+- **DPI stages:** the 1–5 presets that the button under the scroll wheel cycles through. Click one to switch to it, or
+  use **Edit** to change how many there are and their values.
+- **Stays in sync:** if you press the DPI button on the mouse, the app (and the DPI number in the menu bar) updates
+  within a second.
+- **Polling rate:** 125, 500 or 1000 Hz.
+
 ### Buttons and macros
 - **Remap the extra buttons:** the two thumb buttons and the scroll wheel click.
 - **Quick picks:** Normal, Do nothing, Copy, Paste, Screenshot and Mission Control.
@@ -43,17 +43,34 @@ Click the icon in the menu bar and every setting is in one popover.
 - Left click, right click and the DPI button aren't remappable.
 
 <p align="center">
-  <img src="docs/buttons.png" width="300" alt="The button picker open for the front thumb button, with Night brightness mode on">
+  <img src="docs/sensor-dark.png" width="300" alt="Sensor tab: DPI 1600, five stages and the polling rate">
   &nbsp;&nbsp;
-  <img src="docs/hover-help.png" width="300" alt="Hover help explaining the Reactive effect">
+  <img src="docs/buttons-dark.png" width="300" alt="Buttons tab with the action picker open for the front thumb button">
+</p>
+
+### Automatic (in ⚙ Settings)
+- **Off when Mac sleeps:** the LEDs go dark when your screen sleeps, the Mac sleeps or you lock it, and each zone
+  comes back exactly as it was. On by default.
+- **Busy light:** the mouse glows red while any app uses your microphone or camera (Zoom, Meet, FaceTime, a recording),
+  then goes back to your lighting. macOS only says *whether* the mic or camera is busy, never what it hears or sees,
+  so no permission is needed. Off by default.
+- **DPI pop-up:** pressing the DPI button on the mouse shows a small overlay with the new DPI and stage, like the
+  volume pop-up, and VoiceOver reads it out. Changes made in the app don't trigger it. On by default.
+
+<p align="center">
+  <img src="docs/settings-dark.png" width="300" alt="Settings tab: Off when Mac sleeps, Busy light, DPI pop-up, Appearance and Open at login">
+  &nbsp;&nbsp;
+  <img src="docs/dpi-popup.png" width="200" alt="The DPI pop-up: 1600 DPI, stage 3 of 5">
 </p>
 
 ### Everything else
-- **Open at login:** a switch next to Quit (in the installed app).
-- **Light and dark themes:** Auto (follows macOS), Light or Dark, chosen at the bottom of the popover.
+- **Light and dark themes:** Auto (follows macOS), Light or Dark, in ⚙ Settings.
+- **Open at login:** a switch in ⚙ Settings (in the installed app).
+- **Remembers your tab:** the popover opens on Lighting, then on whichever tab you used last.
 - **Hover help:** the ⓘ icons explain the advanced settings in plain words.
-- **Accessible:** text meets WCAG AA contrast in light and dark themes. Every control has a VoiceOver name and announces when
-  it's selected, click targets are at least 24 points, and the app respects "Reduce motion".
+- **Accessible:** text meets WCAG AA contrast in light and dark themes. Every control has a VoiceOver name and
+  announces when it's selected, the tabs work with the arrow keys, click targets are at least 24 points, and the app
+  respects "Reduce motion".
 - **Clear errors:** if macOS blocks the mouse, the popover says so, and clicking the message opens the right
   System Settings page.
 - **Remembers everything:** settings are saved, and the menu bar shows the current DPI.
@@ -86,8 +103,9 @@ macOS asks for **Input Monitoring** permission (to talk to the mouse) and, if yo
 .venv/bin/python -m unittest discover -s tests -v
 ```
 
-These need no mouse and open no windows. They cover the brightness fades, Night mode, settings migration and safe
-saving, which commands run on the background thread, the macro parser, and the USB report format.
+These need no mouse and open no windows. They cover the brightness fades, Night mode, the busy light, sleep and
+wake, when the DPI pop-up shows, settings migration and safe saving, which commands run on the background thread,
+the macro parser, and the USB report format.
 
 ## Build the .app
 
@@ -113,7 +131,8 @@ the logo with your current LED colour.
 | `ui.html` | The popover's interface (runs in a WKWebView) |
 | `razer_da_v2.py` | Talks to the mouse over USB HID; also the command-line tool |
 | `remap.py` | Button remapping and macros (event tap) |
-| `ambient.py` | Reads the Mac's screen brightness and Night Shift state |
+| `ambient.py` | Reads the Mac's screen brightness, Night Shift and whether a mic or camera is in use |
+| `hud.py` | The DPI pop-up overlay |
 | `tests/` | Unit tests (no hardware needed) |
 | `build.sh`, `make_signing_cert.sh`, `setup.py` | Building and signing the .app |
 
