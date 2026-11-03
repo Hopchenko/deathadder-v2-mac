@@ -19,7 +19,7 @@ from AppKit import (NSApp, NSAppearance, NSAppearanceNameAqua, NSAppearanceNameD
                     NSMakeRect, NSMakeSize, NSMinYEdge, NSPopover, NSPopoverBehaviorTransient, NSScreen, NSStatusBar,
                     NSVariableStatusItemLength, NSViewController, NSWorkspace, NSWorkspaceDidWakeNotification,
                     NSWorkspaceScreensDidSleepNotification, NSWorkspaceScreensDidWakeNotification,
-                    NSWorkspaceWillSleepNotification)
+                    NSWorkspaceWillSleepNotification, NSFont, NSFontAttributeName, NSAttributedString)
 from Foundation import NSDictionary, NSDistributedNotificationCenter, NSObject, NSTimer, NSURL
 from PyObjCTools import AppHelper
 from ServiceManagement import SMAppService
@@ -180,6 +180,7 @@ class App:
             self.logo.setSize_(NSMakeSize(18, 18))
             self.logo.setTemplate_(True)                         # macOS tints it to match the menu bar
         self.item = NSStatusBar.systemStatusBar().statusItemWithLength_(NSVariableStatusItemLength)
+        self.item_width = None
         self.item.button().setTarget_(self.bridge)
         self.item.button().setAction_("toggle:")
 
@@ -271,7 +272,19 @@ class App:
     def update_status_item(self):
         b, s = self.item.button(), self.state
         b.setImage_((self.logo or symbol("computermouse.fill")) if s else symbol("exclamationmark.triangle"))
-        b.setTitle_(f" {s['dpi'][0]}" if s else "")
+        if s:
+            # Even-width digits and a fixed item width: otherwise the item (and the open popover anchored to it)
+            # shifts sideways whenever the DPI changes, e.g. from 800 to 1600.
+            font = NSFont.monospacedDigitSystemFontOfSize_weight_(NSFont.menuBarFontOfSize_(0).pointSize(), 0)
+            b.setAttributedTitle_(NSAttributedString.alloc().initWithString_attributes_(
+                f" {s['dpi'][0]}", {NSFontAttributeName: font}))
+            if self.item_width is None:
+                widest = NSAttributedString.alloc().initWithString_attributes_(" 20000", {NSFontAttributeName: font})
+                self.item_width = round(widest.size().width + 18 + 12)    # + 18 pt icon + padding
+            self.item.setLength_(self.item_width)
+        else:
+            b.setTitle_("")
+            self.item.setLength_(NSVariableStatusItemLength)              # just the warning icon
         b.setToolTip_("DeathAdder V2" if s else "DeathAdder V2: not connected")
 
     # --- messages from the page ---------------------------------------------
