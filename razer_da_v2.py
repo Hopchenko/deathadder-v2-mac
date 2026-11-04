@@ -27,6 +27,7 @@ VARSTORE, NOSTORE = 0x01, 0x00
 ZONES = {"logo": 0x04, "wheel": 0x01}
 DPI_MIN, DPI_MAX = 100, 20000  # OpenRazer daemon: RazerDeathAdderV2.DPI_MAX
 POLL_RATES = {1000: 0x01, 500: 0x02, 125: 0x08}
+REPLY_TIMEOUT = 0.15     # seconds to wait for each reply (it usually takes ~0.3 ms)
 STATUS = {0x00: "new", 0x01: "busy", 0x02: "ok", 0x03: "failed",
           0x04: "timeout", 0x05: "not supported"}
 # Effects OpenRazer enables for 0x0084 on both zones (daemon RazerDeathAdderV2.METHODS).
@@ -86,26 +87,35 @@ class Mouse:
         self.close()
 
     def cmd(self, cmd_class, cmd_id, args, size=None, txn=TRANSACTION_ID):
-        """Send one report, return the 80 argument bytes of the reply (retries like OpenRazer)."""
+        """Send one report, return the 80 argument bytes of the reply.
+        The mouse answers in well under a millisecond, so poll for the reply instead of sleeping a fixed time;
+        'new'/'busy' means it's still working, a mismatched or failed reply gets the report sent again."""
         report = bytes([0x00]) + bytes(build_report(cmd_class, cmd_id, args, size, txn))  # 0x00 = report ID
         status = "no reply"
-        for _ in range(5):
+        for _ in range(3):
             try:
                 self.dev.send_feature_report(report)
-                time.sleep(0.06)                      # mouse needs a moment
-                resp = bytes(self.dev.get_feature_report(0x00, 91))
             except (OSError, ValueError) as e:
                 raise RazerError(f"USB error talking to the mouse: {e}. Was it unplugged?")
-            resp = resp[1:] if len(resp) == 91 else resp
-            if len(resp) < 90 or resp[6] != cmd_class or resp[7] != cmd_id:
-                status = "mismatched reply"
-            else:
+            deadline = time.monotonic() + REPLY_TIMEOUT
+            while time.monotonic() < deadline:
+                time.sleep(0.0005)
+                try:
+                    resp = bytes(self.dev.get_feature_report(0x00, 91))
+                except (OSError, ValueError) as e:
+                    raise RazerError(f"USB error talking to the mouse: {e}. Was it unplugged?")
+                resp = resp[1:] if len(resp) == 91 else resp
+                if len(resp) < 90 or resp[6] != cmd_class or resp[7] != cmd_id:
+                    status = "mismatched reply"
+                    continue
                 status = STATUS.get(resp[0], f"unknown 0x{resp[0]:02x}")
-                if status in ("ok", "busy"):
+                if status == "ok":
                     return resp[8:88]
-                if status == "not supported":
-                    break
-            time.sleep(0.01)
+                if status in ("new", "busy"):
+                    continue
+                break                                      # failed / timeout / not supported
+            if status == "not supported":
+                break
         raise RazerError(f"Mouse replied '{status}' to command {cmd_class:#04x}/{cmd_id:#04x}")
 
     # --- read-only ---------------------------------------------------------

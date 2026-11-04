@@ -206,7 +206,7 @@ function render() {
       </div>${ui.err.stages ? `<div class="err">${ui.err.stages}</div>` : ""}`;
   } else {
     stageHtml = `<div class="seg" style="background:var(--well)">${stages.map((d, i) =>
-        `<button class="${i + 1 === active ? "on" : ""}" aria-pressed="${i + 1 === active}" aria-label="Stage ${i + 1}, ${d} DPI" onclick="post('stage',{i:${i + 1}})">${d}</button>`).join("")}</div>`;
+        `<button class="${i + 1 === active ? "on" : ""}" aria-pressed="${i + 1 === active}" aria-label="Stage ${i + 1}, ${d} DPI" onclick="now({stages:[${i + 1},S.stages[1]],dpi:${d}});post('stage',{i:${i + 1}})">${d}</button>`).join("")}</div>`;
   }
 
   let btnHtml = BUTTONS.map(([k, label], idx) => {
@@ -247,7 +247,7 @@ function render() {
   </div>
   <div style="display:flex;align-items:center;gap:12px;margin-top:16px">
     <span class="lbl" style="width:72px">Polling ${info("How often the mouse reports its position to the Mac. 1000 Hz (every 1 ms) feels smoothest; 125 Hz uses the least CPU but feels choppier.")}</span>
-    <div class="seg" style="flex:1">${[125, 500, 1000].map(h => `<button class="${S.poll === h ? "on" : ""}" aria-pressed="${S.poll === h}" aria-label="${h} Hz" onclick="post('poll',{hz:${h}})">${h === 1000 ? "1000 Hz" : h}</button>`).join("")}</div>
+    <div class="seg" style="flex:1">${[125, 500, 1000].map(h => `<button class="${S.poll === h ? "on" : ""}" aria-pressed="${S.poll === h}" aria-label="${h} Hz" onclick="now({poll:${h}});post('poll',{hz:${h}})">${h === 1000 ? "1000 Hz" : h}</button>`).join("")}</div>
   </div>
 
 `,
@@ -346,6 +346,8 @@ function render() {
   size();
 }
 
+// Show a change the moment you click; the app confirms it with the mouse's own reading a few ms later.
+function now(patch) { S = Object.assign({}, S, patch); render(); }
 function size() { requestAnimationFrame(() => post("size", {h: $("#root").offsetHeight})); }
 function toggleRow(k) { ui.open = ui.open === k ? null : k; ui.recording = ui.macro = false; ui.err.button = null; render(); }
 function setButton(k, v) { ui.err.button = null; post("button", {name: k, action: v.trim() || "default"}); }
@@ -353,6 +355,7 @@ function setDpi(v) {
   const d = Number(v);
   ui.err.dpi = Number.isInteger(d) && d >= 100 && d <= 20000 ? null : "Use a whole number from 100 to 20000.";
   if (ui.err.dpi) return render();
+  now({dpi: d});
   post("dpi", {dpi: d});
 }
 function stageCount(n) {

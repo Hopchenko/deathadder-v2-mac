@@ -32,7 +32,7 @@ import remap
 
 CONFIG = os.path.expanduser("~/Library/Application Support/RazerDAV2/config.json")
 HERE = os.environ.get("RESOURCEPATH", os.path.dirname(os.path.abspath(__file__)))   # py2app sets RESOURCEPATH
-SYNC_SECONDS = 1.0     # how often we re-read DPI from the mouse (catches the DPI button)
+SYNC_SECONDS = 0.12    # how often we re-read DPI from the mouse (catches the DPI button); each read is ~1 ms
 WIDTH = 376
 LIGHT_MODES = ("off", "manual", "screen", "night")
 # Page messages handled on the main thread (windows, panels, system settings, event tap); the rest go to the worker.
@@ -159,6 +159,7 @@ class App:
         self.panel_slot = 0
         self.lock = threading.Lock()         # one HID conversation at a time (UI actions + sync thread)
         self.save_lock = threading.Lock()
+        self._conn = None                    # shared mouse connection, see conn()
         self.remapper = remap.Remapper()
         self.build_ui()
         self.watch_power()
@@ -355,23 +356,23 @@ class App:
     def on_dpi(self, dpi):
         self.dpi_set_at = time.time()
         self.mouse(lambda m: m.set_dpi(int(dpi)))
-        self.refresh()
+        self.refresh_sensor()
 
     def on_stage(self, i):
         self.dpi_set_at = time.time()
         _, stages = self.state["dpi_stages"]
         self.mouse(lambda m: m.set_dpi_stages(int(i), stages))
-        self.refresh()
+        self.refresh_sensor()
 
     def on_stages(self, active, list):
         self.dpi_set_at = time.time()
         values = [int(d) for d in list]
         self.mouse(lambda m: m.set_dpi_stages(int(active), values))
-        self.refresh()
+        self.refresh_sensor()
 
     def on_poll(self, hz):
         self.mouse(lambda m: m.set_poll_rate(int(hz)))
-        self.refresh()
+        self.refresh_sensor()
 
     # lighting
     def on_zone(self, zone):
@@ -550,12 +551,32 @@ class App:
     def zones(self):
         return list(razer.ZONES) if self.zone == "both" else [self.zone]
 
+    def conn(self):
+        """The shared mouse connection (opening one takes ~35 ms, so keep it). Call with self.lock held."""
+        if self._conn is None:
+            self._conn = razer.Mouse()
+        return self._conn
+
+    def drop_conn(self):
+        if self._conn is not None:
+            try:
+                self._conn.close()
+            except Exception:
+                pass
+            self._conn = None
+
     def mouse(self, fn, quiet=False):
-        """Run fn(mouse) on a fresh connection; show a clear error instead of crashing."""
+        """Run fn(mouse) on the shared connection; show a clear error instead of crashing."""
         try:
-            with self.lock, razer.Mouse() as m:
-                return fn(m)
+            with self.lock:
+                try:
+                    return fn(self.conn())
+                except razer.RazerError:
+                    self.drop_conn()                 # unplugged or stale: one fresh try
+                    return fn(self.conn())
         except razer.RazerError as e:
+            with self.lock:
+                self.drop_conn()
             self.set_disconnected(str(e))
             if not quiet:
                 self.toast(str(e))
@@ -566,6 +587,13 @@ class App:
         self.state, self.error = None, why
         self.push()
 
+    def refresh_sensor(self):
+        """After a sensor change: read back DPI, stages and polling rate only (3 quick reads)."""
+        got = self.mouse(lambda m: (m.dpi(), m.dpi_stages(), m.poll_rate()))
+        if got and self.state:
+            self.state = dict(self.state, dpi=got[0], dpi_stages=got[1], poll_rate=got[2])
+        self.push()
+
     def refresh(self, quiet=False):
         state = self.mouse(lambda m: m.read_state(), quiet=quiet)
         if state:
@@ -574,21 +602,18 @@ class App:
 
     def sync_loop(self):
         """Background: re-read DPI + stages so presses of the DPI button show up."""
-        m = None                                     # one connection, kept open; reopened only after an error
         while True:
-            time.sleep(SYNC_SECONDS)
+            time.sleep(SYNC_SECONDS if self.state else 1.0)   # look for a replugged mouse once a second
             try:
                 with self.lock:
-                    if m is None:
-                        m = razer.Mouse()
+                    m = self.conn()
                     if self.state is None:
                         new = m.read_state()                      # (re)connected: read everything
                     else:
                         new = dict(self.state, dpi=m.dpi(), dpi_stages=m.dpi_stages())
             except razer.RazerError as e:
-                if m is not None:
-                    m.close()
-                    m = None
+                with self.lock:
+                    self.drop_conn()
                 if self.state is not None:
                     self.run(lambda e=e: self.set_disconnected(str(e)))
                 continue
